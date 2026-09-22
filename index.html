@@ -162,13 +162,14 @@
 
           <div class="add-form">
             <h3>Dodaj novo gostilno</h3>
-            <p class="section-sub">Lastnik bo po e-pošti prejel povabilo za nastavitev gesla.</p>
+            <p class="section-sub">Nastavite geslo sami in ga sporočite gostilni, ali pustite prazno, da ji Supabase pošlje povabilo po e-pošti.</p>
             <form id="addRestaurantForm">
               <div class="form-grid">
                 <div class="form-field"><label>Ime gostilne</label><input class="text-input dark-input" id="newName" required></div>
                 <div class="form-field"><label>Kraj</label><input class="text-input dark-input" id="newKraj" required></div>
                 <div class="form-field"><label>Kuhinja</label><input class="text-input dark-input" id="newKuhinja" required></div>
                 <div class="form-field"><label>E-pošta lastnika</label><input class="text-input dark-input" type="email" id="newEmail" required></div>
+                <div class="form-field"><label>Geslo (neobvezno)</label><input class="text-input dark-input" type="text" id="newPassword" placeholder="Pustite prazno za povabilo po e-pošti"></div>
                 <div class="form-field"><label>Odpre</label><input class="text-input dark-input" type="time" id="newOd" value="09:00"></div>
                 <div class="form-field"><label>Zapre</label><input class="text-input dark-input" type="time" id="newDo" value="20:00"></div>
                 <div class="form-field"><label>Naročil na termin (max.)</label><input class="text-input dark-input" type="number" id="newMaxSlot" value="6"></div>

@@ -72,6 +72,48 @@
     return apiFetch(path, opts);
   }
 
+  // ---------------- nastavitev gesla ob povabilu / obnovitvi gesla ----------------
+  // Ko uporabnik klikne povezavo v e-pošti (povabilo ali "pozabljeno geslo"), Supabase doda
+  // #access_token=...&type=invite (ali type=recovery) na URL. To zaznamo in mu ponudimo obrazec za novo geslo.
+  let pendingAuthType = null;
+  (function checkAuthHash() {
+    const hash = window.location.hash || '';
+    if (hash.includes('type=invite')) pendingAuthType = 'invite';
+    else if (hash.includes('type=recovery')) pendingAuthType = 'recovery';
+  })();
+
+  function showSetPasswordModal() {
+    openModal(`
+      <h3>${pendingAuthType === 'invite' ? 'Dobrodošli! Nastavite geslo' : 'Nastavite novo geslo'}</h3>
+      <p>${pendingAuthType === 'invite' ? 'To je vaša prva prijava v Mizico. Preden nadaljujete, nastavite svoje geslo.' : 'Vnesite novo geslo za svoj račun.'}</p>
+      <div class="field-group"><label class="field-label">Novo geslo</label><input class="text-input" type="password" id="newPasswordInput" autocomplete="new-password"></div>
+      <div class="field-group"><label class="field-label">Ponovite geslo</label><input class="text-input" type="password" id="newPasswordInput2" autocomplete="new-password"></div>
+      <div class="field-error" id="setPasswordError"></div>
+      <div class="modal-close-row">
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" id="setPasswordBtn">Shrani geslo</button>
+      </div>
+    `);
+    document.getElementById('setPasswordBtn').addEventListener('click', async () => {
+      const p1 = document.getElementById('newPasswordInput').value;
+      const p2 = document.getElementById('newPasswordInput2').value;
+      const errEl = document.getElementById('setPasswordError');
+      if (!p1 || p1.length < 6) { errEl.textContent = 'Geslo mora imeti vsaj 6 znakov.'; return; }
+      if (p1 !== p2) { errEl.textContent = 'Gesli se ne ujemata.'; return; }
+      const { error } = await sb.auth.updateUser({ password: p1 });
+      if (error) { errEl.textContent = error.message; return; }
+      closeModal();
+      pendingAuthType = null;
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+      showToast('Geslo je nastavljeno. Prijavljeni ste — izberite "Za gostilne" ali "Skrbnik" zgoraj.');
+      if (currentView === 'owner') initOwnerView();
+      if (currentView === 'admin') initAdminView();
+    });
+  }
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (pendingAuthType && session) showSetPasswordModal();
+  });
+
   // ---------------- usmerjanje pogledov ----------------
   let currentView = 'market';
   function goToView(name) {
@@ -958,6 +1000,7 @@
         <td class="billing-line">${billingText(r)}</td>
         <td class="td-actions">
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openBillingModal('${r.id}')">Obračun</button>
+          <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openSetPasswordModal('${r.id}')">Nastavi geslo</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__toggleActive('${r.id}',${!r.aktivna})">${r.aktivna ? 'Deaktiviraj' : 'Aktiviraj'}</button>
         </td>
       </tr>
@@ -1009,6 +1052,36 @@
   }
   window.__saveBilling = saveBilling;
 
+  function openSetPasswordModal(id) {
+    const r = adminRestaurants.find((x) => x.id === id);
+    if (!r) return;
+    openModal(`
+      <h3>Nastavi geslo &middot; ${esc(r.name)}</h3>
+      <p>Geslo boste morali gostilni sporočiti sami (npr. po telefonu ali osebno). E-pošta ob tem ne bo poslana.</p>
+      <div class="field-group"><label class="field-label">Novo geslo</label><input class="text-input" type="text" id="setPwInput" placeholder="Vsaj 6 znakov"></div>
+      <div class="field-error" id="setPwError"></div>
+      <div class="modal-close-row">
+        <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__confirmSetPassword('${id}')">Nastavi geslo</button>
+      </div>
+    `);
+  }
+  window.__openSetPasswordModal = openSetPasswordModal;
+
+  async function confirmSetPassword(id) {
+    const pw = document.getElementById('setPwInput').value.trim();
+    const errEl = document.getElementById('setPwError');
+    if (!pw || pw.length < 6) { errEl.textContent = 'Geslo mora imeti vsaj 6 znakov.'; return; }
+    try {
+      await authedFetch('/admin/restaurants/' + id + '/set-password', { method: 'POST', body: { password: pw } }, adminToken());
+      closeModal();
+      showToast('Geslo nastavljeno. Sporočite ga gostilni.');
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  }
+  window.__confirmSetPassword = confirmSetPassword;
+
   async function loadAnalytics() {
     if (!adminMonth) adminMonth = monthKey(0);
     try {
@@ -1059,6 +1132,7 @@
       kraj: document.getElementById('newKraj').value.trim(),
       kuhinja: document.getElementById('newKuhinja').value.trim(),
       email: document.getElementById('newEmail').value.trim(),
+      password: document.getElementById('newPassword').value.trim() || undefined,
       odpira_od: document.getElementById('newOd').value,
       odpira_do: document.getElementById('newDo').value,
       max_per_slot: parseInt(document.getElementById('newMaxSlot').value, 10) || 6,
@@ -1070,7 +1144,7 @@
     try {
       await authedFetch('/admin/restaurants', { method: 'POST', body }, adminToken());
       e.target.reset();
-      showToast(`Gostilna "${body.name}" dodana. Lastnik je prejel povabilo po e-pošti.`);
+      showToast(body.password ? `Gostilna "${body.name}" dodana. Geslo sporočite gostilni sami.` : `Gostilna "${body.name}" dodana. Lastnik je prejel povabilo po e-pošti.`);
       await loadAdminRestaurants();
     } catch (err) {
       errEl.textContent = err.message;
