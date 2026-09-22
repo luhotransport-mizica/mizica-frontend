@@ -1108,13 +1108,13 @@
         @page { margin: 16mm; }
         * { box-sizing: border-box; }
         html, body { height: auto; }
-        body{font-family:Arial, Helvetica, sans-serif; color:#111; margin:0; padding:24px; font-size:16px; max-width:640px;}
-        h2{margin:0 0 4px; font-size:1.7rem;}
-        .p-sub{font-size:1rem; margin:0 0 20px; color:#444;}
-        .p-line{display:flex; justify-content:space-between; gap:14px; font-size:1.1rem; padding:7px 0; border-bottom:1px dashed #ccc;}
-        .p-total{display:flex; justify-content:space-between; font-weight:700; font-size:1.4rem; margin-top:16px; padding-top:12px; border-top:2px solid #111;}
-        .p-meta{font-size:1.05rem; margin:4px 0;}
-        .p-print-btn{display:block; margin:0 0 20px; padding:12px 20px; font-size:1.05rem; font-weight:700; background:#2f6b3f; color:#fff; border:none; border-radius:8px; cursor:pointer;}
+        body{font-family:Arial, Helvetica, sans-serif; color:#111; margin:0 auto; padding:32px; font-size:22px; max-width:720px;}
+        h2{margin:0 0 6px; font-size:2.4rem;}
+        .p-sub{font-size:1.3rem; margin:0 0 26px; color:#444;}
+        .p-line{display:flex; justify-content:space-between; gap:14px; font-size:1.4rem; padding:10px 0; border-bottom:1px dashed #ccc;}
+        .p-total{display:flex; justify-content:space-between; font-weight:700; font-size:1.8rem; margin-top:20px; padding-top:16px; border-top:3px solid #111;}
+        .p-meta{font-size:1.35rem; margin:6px 0;}
+        .p-print-btn{display:block; margin:0 0 26px; padding:16px 24px; font-size:1.3rem; font-weight:700; background:#2f6b3f; color:#fff; border:none; border-radius:8px; cursor:pointer;}
         @media print { .p-print-btn{display:none;} }
       </style></head><body>
       <button class="p-print-btn" type="button" onclick="window.print()">Natisni / Shrani kot PDF</button>
@@ -1128,7 +1128,7 @@
       ${o.delivery_fee ? `<div class="p-line"><span>Strošek dostave</span><span>${eur(o.delivery_fee)}</span></div>` : ''}
       <div class="p-total"><span>Skupaj</span><span>${eur(total)}</span></div>
       </body></html>`;
-    const w = window.open('', '_blank', 'width=560,height=720');
+    const w = window.open('', '_blank', 'width=820,height=900');
     if (!w) { showToast('Brskalnik je blokiral pojavno okno — dovolite pojavna okna za natis.'); return; }
     w.document.open();
     w.document.write(html);
