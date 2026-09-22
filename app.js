@@ -660,6 +660,18 @@
       const result = customerToken()
         ? await authedFetch('/orders', { method: 'POST', body: orderBody }, customerToken())
         : await apiFetch('/orders', { method: 'POST', body: orderBody });
+
+      // Če je stranka prijavljena, ime/telefon tiho shranimo v njen profil, da jih ob naslednjem
+      // naročilu ni treba znova vpisovati (polja na "Moj račun" se s tem tudi samodejno izpolnijo).
+      if (customerToken()) {
+        const meta = customerMeta();
+        if (meta.ime !== name || meta.telefon !== phone) {
+          sb.auth.updateUser({ data: Object.assign({}, meta, { ime: name, telefon: phone }) })
+            .then(({ data }) => { if (data?.user) customerSession.user = data.user; })
+            .catch(() => {});
+        }
+      }
+
       cart = { restaurantId: null, lines: {}, type: null, timeSlot: '', payment: '', discountCode: '', discountPercent: 0, redeemPoints: 0 };
       renderConfirm(result.order, result.vat, currentRestaurant.name);
       goToView('confirm');
@@ -772,6 +784,38 @@
     } catch (e) {
       document.getElementById('accountOrders').innerHTML = `<div class="error-note">Naročil ni bilo mogoče naložiti (${esc(e.message)}).</div>`;
     }
+    const loyaltyWrap = document.getElementById('accountLoyaltyOverview');
+    if (loyaltyWrap) {
+      loyaltyWrap.innerHTML = '<div class="loading-note">Nalagam...</div>';
+      try {
+        const overview = await authedFetch('/customer/loyalty-overview', {}, customerToken());
+        renderAccountLoyaltyOverview(overview);
+      } catch (e) {
+        loyaltyWrap.innerHTML = `<div class="error-note">Ni bilo mogoče naložiti (${esc(e.message)}).</div>`;
+      }
+    }
+  }
+
+  function renderAccountLoyaltyOverview(list) {
+    const wrap = document.getElementById('accountLoyaltyOverview');
+    if (!wrap) return;
+    if (!list || !list.length) { wrap.innerHTML = '<p class="section-sub">Trenutno nimate zbranih točk ali dostopnih kod za popust pri nobeni gostilni.</p>'; return; }
+    wrap.innerHTML = `
+      <div class="loyalty-overview-list">
+        ${list.map((r) => `
+          <button type="button" class="loyalty-overview-row" onclick="window.__openRestaurant('${r.restaurant_id}')">
+            ${r.logo_url ? `<img class="loyalty-overview-logo" src="${esc(r.logo_url)}" alt="">` : '<div class="loyalty-overview-logo empty"></div>'}
+            <div class="loyalty-overview-main">
+              <span class="loyalty-overview-name">${esc(r.name)}</span>
+              <div class="loyalty-overview-tags">
+                ${r.loyalty_balance > 0 ? `<span class="tag gold">&#9733; ${r.loyalty_balance} točk</span>` : ''}
+                ${(r.discount_codes || []).map((c) => `<span class="tag">Koda ${esc(c.code)} &minus;${c.percent}%</span>`).join('')}
+              </div>
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    `;
   }
 
   function renderAccountProfile() {

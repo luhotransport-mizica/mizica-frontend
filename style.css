@@ -386,3 +386,12 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .dc-actions .link-btn.danger{color:var(--red); margin:0;}
 .add-discount-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
 .add-discount-row input{flex:1; min-width:110px;}
+
+.loyalty-overview-list{display:flex; flex-direction:column; gap:8px;}
+.loyalty-overview-row{display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:var(--bg-sunken); border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 14px; cursor:pointer; transition:background .15s,transform .15s; font-family:inherit;}
+.loyalty-overview-row:hover{transform:translateY(-1px); background:var(--bg-elev);}
+.loyalty-overview-logo{width:40px; height:40px; border-radius:50%; object-fit:cover; flex-shrink:0;}
+.loyalty-overview-logo.empty{background:var(--line);}
+.loyalty-overview-main{display:flex; flex-direction:column; gap:5px; min-width:0;}
+.loyalty-overview-name{font-weight:700; font-size:.92rem; color:var(--ink);}
+.loyalty-overview-tags{display:flex; flex-wrap:wrap; gap:6px;}
