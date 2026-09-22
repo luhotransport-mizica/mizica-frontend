@@ -314,7 +314,7 @@
 
     const menuHtml = (r.meni || []).map((cat) => `
       <div class="menu-cat">
-        <h3>${esc(cat.name)}</h3>
+        <h3>${esc(cat.name)}${(cat.aktivna_od || cat.aktivna_do) ? ` <span class="pill-daily">Na voljo ${cat.aktivna_od ? cat.aktivna_od.slice(0,5) : '?'}&ndash;${cat.aktivna_do ? cat.aktivna_do.slice(0,5) : '?'}</span>` : ''}</h3>
         ${(cat.menu_items || []).map((it) => renderMenuItemRow(it)).join('') || '<p class="section-sub">Ni jedi v tej kategoriji.</p>'}
       </div>
     `).join('') || '<p class="section-sub">Meni še ni na voljo.</p>';
@@ -982,7 +982,6 @@
       ownerKnownOrderIds = new Set(orders.map((o) => o.id));
       renderOwnerBoard();
       if (newOnes.length) {
-        playAlertBeep();
         showToast(`🔔 Novo naročilo: ${newOnes.map((o) => o.customer_name).join(', ')}`);
       }
     } catch (e) {
@@ -990,6 +989,20 @@
     }
   }
   setInterval(() => { if (ownerSession) pollOwnerOrders(); }, 15000);
+
+  // Alarm se ponavlja na nekaj sekund, dokler je vsaj eno naročilo v stanju "novo"
+  // (dokler ga gostilna ne sprejme ali zavrne) — da ga zares opazijo, tudi če ne gledajo v zaslon.
+  let alarmInterval = null;
+  function updateAlarmState() {
+    const hasNew = ownerOrders.some((o) => o.status === 'novo');
+    if (hasNew && !alarmInterval) {
+      playAlertBeep();
+      alarmInterval = setInterval(playAlertBeep, 4000);
+    } else if (!hasNew && alarmInterval) {
+      clearInterval(alarmInterval);
+      alarmInterval = null;
+    }
+  }
 
   const OWNER_STATUS_COLS = [
     ['novo', 'Novo'],
@@ -999,10 +1012,26 @@
   ];
   const STATUS_NEXT_LABEL = { novo: 'Sprejmi', priprava: 'Pripravljeno', pripravljeno: 'Prevzeto/oddano' };
 
+  // "Prevzeto/oddano" naročila se čez dan kopičijo — prikažemo jih samo zadnjih nekaj,
+  // ostalo je na voljo z gumbom "Pokaži več" (ostanejo v analitiki/zgodovini, samo skrita so s pogleda).
+  let prevzetoShowCount = 3;
+  function showMorePrevzeto() { prevzetoShowCount += 10; renderOwnerBoard(); }
+  window.__showMorePrevzeto = showMorePrevzeto;
+
   function renderOwnerBoard() {
     const board = document.getElementById('ownerBoard');
     board.innerHTML = OWNER_STATUS_COLS.map(([status, label]) => {
       const list = ownerOrders.filter((o) => o.status === status);
+      if (status === 'prevzeto') {
+        const shown = list.slice(0, prevzetoShowCount);
+        return `
+          <div class="board-col">
+            <h4>${label} (${list.length})</h4>
+            ${shown.length ? shown.map((o) => renderOwnerOrderCard(o)).join('') : '<p class="empty-col">Ni naročil.</p>'}
+            ${list.length > shown.length ? `<button class="secondary-btn" type="button" style="width:100%; margin-top:8px;" onclick="window.__showMorePrevzeto()">Pokaži več (še ${list.length - shown.length})</button>` : ''}
+          </div>
+        `;
+      }
       return `
         <div class="board-col">
           <h4>${label} (${list.length})</h4>
@@ -1015,6 +1044,7 @@
         ${ownerOrders.filter((o) => o.status === 'zavrnjeno').slice(0, 8).map((o) => renderOwnerOrderCard(o)).join('') || '<p class="empty-col">Ni naročil.</p>'}
       </div>
     `;
+    updateAlarmState();
   }
 
   function renderOwnerOrderCard(o) {
@@ -1037,14 +1067,54 @@
         <div class="order-items">Tel: ${esc(o.phone)}</div>
         <div class="order-total">${eur(total)}</div>
         ${o.rejection_reason ? `<div class="order-reject">${esc(o.rejection_reason)}</div>` : ''}
-        ${next ? `
         <div class="order-actions">
-          <button class="mini-btn primary" type="button" onclick="window.__advanceOrder('${o.id}')">${next}</button>
-          <button class="mini-btn ghost" type="button" onclick="window.__rejectOrder('${o.id}')">Zavrni</button>
-        </div>` : ''}
+          ${next ? `<button class="mini-btn primary" type="button" onclick="window.__advanceOrder('${o.id}')">${next}</button>` : ''}
+          ${next ? `<button class="mini-btn ghost" type="button" onclick="window.__rejectOrder('${o.id}')">Zavrni</button>` : ''}
+          <button class="mini-btn ghost" type="button" onclick="window.__printOrder('${o.id}')">Natisni</button>
+        </div>
       </div>
     `;
   }
+
+  // ---------------- tiskanje naročila ----------------
+  function printOrder(id) {
+    const o = ownerOrders.find((x) => x.id === id);
+    if (!o) return;
+    const items = (o.order_items || []).map((i) => {
+      const sub = [];
+      if (i.variant_name) sub.push(esc(i.variant_name));
+      if (i.addons && i.addons.length) sub.push('+ ' + i.addons.map((a) => esc(a.name)).join(', +'));
+      return `<div class="p-line"><span>${i.qty}&times; ${esc(i.name)}${sub.length ? ' (' + sub.join(', ') + ')' : ''}</span><span>${eur(i.price * i.qty)}</span></div>`;
+    }).join('');
+    const total = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0) + Number(o.delivery_fee || 0);
+    const html = `<!DOCTYPE html><html lang="sl"><head><meta charset="UTF-8"><title>Naročilo — ${esc(o.customer_name)}</title>
+      <style>
+        body{font-family:'Courier New',monospace; max-width:340px; margin:0 auto; padding:16px; color:#111;}
+        h2{margin:0 0 2px; font-size:1.2rem;}
+        .p-sub{font-size:.85rem; margin:0 0 12px; color:#444;}
+        .p-line{display:flex; justify-content:space-between; gap:10px; font-size:.92rem; padding:3px 0; border-bottom:1px dashed #ccc;}
+        .p-total{display:flex; justify-content:space-between; font-weight:700; font-size:1.05rem; margin-top:10px; padding-top:8px; border-top:2px solid #111;}
+        .p-meta{font-size:.88rem; margin:2px 0;}
+        @media print { body{padding:0;} }
+      </style></head><body>
+      <h2>${esc(ownerRestaurant ? ownerRestaurant.name : 'Naročilo')}</h2>
+      <p class="p-sub">${new Date(o.placed_at).toLocaleString('sl-SI', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
+      <p class="p-meta"><strong>${esc(o.customer_name)}</strong> &middot; Tel: ${esc(o.phone)}</p>
+      <p class="p-meta">${o.type === 'dostava' ? 'Dostava' : 'Prevzem'} &middot; Termin: ${esc(o.time_slot || '')}</p>
+      ${o.address ? `<p class="p-meta">Naslov: ${esc(o.address)}</p>` : ''}
+      <p class="p-meta">Plačilo: ${o.payment === 'kartica' ? 'Kartica' : 'Gotovina'} ob ${o.type === 'dostava' ? 'dostavi' : 'prevzemu'}</p>
+      <div style="margin-top:12px;">${items}</div>
+      ${o.delivery_fee ? `<div class="p-line"><span>Strošek dostave</span><span>${eur(o.delivery_fee)}</span></div>` : ''}
+      <div class="p-total"><span>Skupaj</span><span>${eur(total)}</span></div>
+      <script>window.onload = function(){ window.print(); };<\/script>
+      </body></html>`;
+    const w = window.open('', '_blank', 'width=420,height=640');
+    if (!w) { showToast('Brskalnik je blokiral pojavno okno — dovolite pojavna okna za natis.'); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+  window.__printOrder = printOrder;
 
   async function advanceOrder(id) {
     try {
@@ -1077,21 +1147,80 @@
   window.__confirmReject = confirmReject;
 
   // ---------------- owner: meni ----------------
+  function catTimeLabel(cat) {
+    if (!cat.aktivna_od && !cat.aktivna_do) return '';
+    const od = cat.aktivna_od ? cat.aktivna_od.slice(0, 5) : '?';
+    const doo = cat.aktivna_do ? cat.aktivna_do.slice(0, 5) : '?';
+    return `<span class="pill-daily">Na voljo ${od}&ndash;${doo}</span>`;
+  }
+
   function renderOwnerMenu() {
     const wrap = document.getElementById('ownerMenu');
     if (!ownerMenu.length) { wrap.innerHTML = '<p class="section-sub">Še ni kategorij. Dodajte prvo spodaj.</p>'; return; }
     wrap.innerHTML = ownerMenu.map((cat) => `
       <div class="mm-cat-head">
-        <h4>${esc(cat.name)}</h4>
+        <h4>${esc(cat.name)} ${catTimeLabel(cat)}</h4>
         <div class="mm-row-actions">
           <button class="secondary-btn" type="button" onclick="window.__addItemForm('${cat.id}')">+ Jed</button>
+          <button class="icon-btn" type="button" title="Uredi uro razpoložljivosti" onclick="window.__editCatForm('${cat.id}')">&#9998;</button>
           <button class="icon-btn" type="button" title="Izbriši kategorijo" onclick="window.__deleteCategory('${cat.id}')">&times;</button>
         </div>
       </div>
+      <div id="editCatForm-${cat.id}"></div>
       <div id="addItemForm-${cat.id}"></div>
       ${(cat.menu_items || []).map((it) => renderOwnerMenuRow(it)).join('') || '<p class="section-sub" style="padding:6px 0;">Ni jedi.</p>'}
     `).join('');
   }
+
+  function findOwnerCat(id) { return ownerMenu.find((c) => c.id === id) || null; }
+
+  function editCatForm(catId) {
+    document.querySelectorAll('[id^="editCatForm-"]').forEach((el) => (el.innerHTML = ''));
+    const cat = findOwnerCat(catId);
+    if (!cat) return;
+    const wrap = document.getElementById('editCatForm-' + catId);
+    wrap.innerHTML = `
+      <div class="inline-form">
+        <div class="field-group">
+          <label class="field-label">Ime kategorije</label>
+          <input class="text-input" id="ec-name-${catId}" value="${esc(cat.name)}">
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="field-group"><label class="field-label">Na voljo od</label><input class="num-input" style="width:100%;" type="time" id="ec-from-${catId}" value="${cat.aktivna_od ? cat.aktivna_od.slice(0,5) : ''}"></div>
+          <div class="field-group"><label class="field-label">Na voljo do</label><input class="num-input" style="width:100%;" type="time" id="ec-to-${catId}" value="${cat.aktivna_do ? cat.aktivna_do.slice(0,5) : ''}"></div>
+        </div>
+        <p class="section-sub">Pustite prazno, če kategorija ni vezana na določeno uro (npr. za malice pustite npr. 11:00&ndash;14:00).</p>
+        <div class="field-error" id="ec-error-${catId}"></div>
+        <div class="inline-form-actions">
+          <button class="secondary-btn" type="button" onclick="window.__cancelCatForm('${catId}')">Prekliči</button>
+          <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__saveCatForm('${catId}')">Shrani</button>
+        </div>
+      </div>
+    `;
+  }
+  window.__editCatForm = editCatForm;
+
+  function cancelCatForm(catId) {
+    const el = document.getElementById('editCatForm-' + catId);
+    if (el) el.innerHTML = '';
+  }
+  window.__cancelCatForm = cancelCatForm;
+
+  async function saveCatForm(catId) {
+    const name = document.getElementById('ec-name-' + catId).value.trim();
+    const aktivna_od = document.getElementById('ec-from-' + catId).value;
+    const aktivna_do = document.getElementById('ec-to-' + catId).value;
+    const errEl = document.getElementById('ec-error-' + catId);
+    if (!name) { errEl.textContent = 'Vpišite ime kategorije.'; return; }
+    try {
+      await authedFetch('/owner/menu/categories/' + catId, { method: 'PATCH', body: { name, aktivna_od: aktivna_od || null, aktivna_do: aktivna_do || null } }, ownerToken());
+      await loadOwnerData();
+      showToast('Kategorija shranjena.');
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  }
+  window.__saveCatForm = saveCatForm;
 
   function renderOwnerMenuRow(it) {
     const vCount = (it.menu_item_variants || []).length;
@@ -1339,11 +1468,13 @@
 
   document.getElementById('addCatBtn').addEventListener('click', async () => {
     const input = document.getElementById('newCatName');
+    const fromInput = document.getElementById('newCatFrom');
+    const toInput = document.getElementById('newCatTo');
     const name = input.value.trim();
     if (!name) { showToast('Vpišite ime kategorije.'); return; }
     try {
-      await authedFetch('/owner/menu/categories', { method: 'POST', body: { name } }, ownerToken());
-      input.value = '';
+      await authedFetch('/owner/menu/categories', { method: 'POST', body: { name, aktivna_od: fromInput.value || null, aktivna_do: toInput.value || null } }, ownerToken());
+      input.value = ''; fromInput.value = ''; toInput.value = '';
       await loadOwnerData();
     } catch (e) { showToast(e.message); }
   });

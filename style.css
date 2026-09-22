@@ -219,7 +219,8 @@ textarea.text-input{resize:vertical; min-height:70px;}
 .chip-check input{margin:0;}
 .inline-form-actions{display:flex; gap:8px; margin-top:12px;}
 .add-cat-row{display:flex; gap:8px; margin-top:18px; flex-wrap:wrap;}
-.add-cat-row input{flex:2; min-width:160px;}
+.add-cat-row input#newCatName{flex:2; min-width:160px;}
+.add-cat-row input[type="time"]{flex:none; width:110px;}
 
 .settings-grid{display:grid; grid-template-columns:1fr 1fr; gap:24px;}
 @media (max-width:760px){ .settings-grid{grid-template-columns:1fr;} }
