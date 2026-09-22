@@ -134,6 +134,11 @@
       </div>
       <div class="board" id="ownerBoard"></div>
 
+      <div class="rejected-dropdown">
+        <button class="secondary-btn" type="button" id="rejectedToggleBtn">Zavrnjena/preklicana naročila (0) &#9662;</button>
+        <div id="rejectedPanel" style="display:none;"></div>
+      </div>
+
       <div class="panel">
         <h2 class="section-title">Upravljanje menija</h2>
         <p class="section-sub">Dodajte kategorije in jedi. Foto ni obvezna — vnesete lahko povezavo (URL) do slike.</p>
@@ -145,6 +150,9 @@
           <button class="secondary-btn" id="addCatBtn">Dodaj kategorijo</button>
         </div>
         <p class="section-sub" style="margin-top:6px;">Uro vnesite le, če je kategorija na voljo samo v določenem časovnem oknu (npr. malice od 11:00 do 14:00) — stranki bo prikazano poleg imena.</p>
+        <label class="chip-check" style="margin-top:8px;"><input type="checkbox" id="newCatMalica"> To je malica (dnevna ponudba z datumom)</label>
+        <input class="num-input" type="date" id="newCatDate" style="display:none; margin-top:8px;">
+        <p class="section-sub" id="newCatMalicaNote" style="display:none;">Datum vsak dan posodobite, ko vnesete novo malico — stranki se ob starem datumu prikaže opozorilo, da morda ni več aktualna.</p>
       </div>
 
       <div class="panel">

@@ -109,6 +109,7 @@ main{padding-block:28px 60px;}
 .mi-stepper button{width:28px; height:28px; border-radius:8px; border:1px solid var(--line); background:var(--bg-sunken); color:var(--ink); font-weight:700;}
 .mi-stepper span{min-width:16px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums;}
 .pill-daily{font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; background:var(--gold-soft); color:var(--gold); padding:2px 7px; border-radius:999px;}
+.pill-daily.pill-stale{background:var(--red-soft); color:var(--red);}
 .mi-options-add{display:flex; align-items:center; gap:8px; flex-shrink:0;}
 .mi-in-cart{font-size:.72rem; font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:999px; padding:3px 9px;}
 .option-list{display:flex; flex-direction:column; gap:8px;}
@@ -169,7 +170,8 @@ textarea.text-input{resize:vertical; min-height:70px;}
 .owner-toolbar{display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:22px;}
 .section-title{font-size:1.2rem; margin-bottom:4px;}
 .section-sub{color:var(--ink-soft); font-size:.86rem;}
-.board{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:34px;}
+.rejected-dropdown{margin:0 0 34px;}
+.board{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:14px;}
 @media (max-width:900px){ .board{grid-template-columns:repeat(2,1fr);} }
 @media (max-width:520px){ .board{grid-template-columns:1fr;} }
 .board-col{background:var(--bg-sunken); border-radius:var(--radius); padding:14px; min-height:80px;}

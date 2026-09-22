@@ -314,7 +314,7 @@
 
     const menuHtml = (r.meni || []).map((cat) => `
       <div class="menu-cat">
-        <h3>${esc(cat.name)}${(cat.aktivna_od || cat.aktivna_do) ? ` <span class="pill-daily">Na voljo ${cat.aktivna_od ? cat.aktivna_od.slice(0,5) : '?'}&ndash;${cat.aktivna_do ? cat.aktivna_do.slice(0,5) : '?'}</span>` : ''}</h3>
+        <h3>${esc(cat.name)} ${catTimeLabel(cat)}</h3>
         ${(cat.menu_items || []).map((it) => renderMenuItemRow(it)).join('') || '<p class="section-sub">Ni jedi v tej kategoriji.</p>'}
       </div>
     `).join('') || '<p class="section-sub">Meni še ni na voljo.</p>';
@@ -1038,14 +1038,28 @@
           ${list.length ? list.map((o) => renderOwnerOrderCard(o)).join('') : '<p class="empty-col">Ni naročil.</p>'}
         </div>
       `;
-    }).join('') + `
-      <div class="board-col">
-        <h4>Zavrnjeno/preklicano (${ownerOrders.filter((o) => o.status === 'zavrnjeno').length})</h4>
-        ${ownerOrders.filter((o) => o.status === 'zavrnjeno').slice(0, 8).map((o) => renderOwnerOrderCard(o)).join('') || '<p class="empty-col">Ni naročil.</p>'}
-      </div>
-    `;
+    }).join('');
+    renderRejectedDropdown();
     updateAlarmState();
   }
+
+  // Zavrnjena/preklicana naročila niso ves čas na strani (samo se kopičijo) — na voljo so
+  // v zloženem meniju, ki ga gostilna odpre po potrebi.
+  let rejectedOpen = false;
+  function renderRejectedDropdown() {
+    const rejected = ownerOrders.filter((o) => o.status === 'zavrnjeno');
+    const btn = document.getElementById('rejectedToggleBtn');
+    btn.textContent = `Zavrnjena/preklicana naročila (${rejected.length}) ${rejectedOpen ? '▲' : '▼'}`;
+    const panel = document.getElementById('rejectedPanel');
+    panel.style.display = rejectedOpen ? 'block' : 'none';
+    if (rejectedOpen) {
+      panel.innerHTML = `<div class="board-col" style="margin-top:10px;">${rejected.slice(0, 30).map((o) => renderOwnerOrderCard(o)).join('') || '<p class="empty-col">Ni naročil.</p>'}</div>`;
+    }
+  }
+  document.getElementById('rejectedToggleBtn').addEventListener('click', () => {
+    rejectedOpen = !rejectedOpen;
+    renderRejectedDropdown();
+  });
 
   function renderOwnerOrderCard(o) {
     const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' (' + esc(i.variant_name) + ')' : ''}${(i.addons && i.addons.length) ? ' +' + i.addons.map((a) => esc(a.name)).join(', +') : ''}`).join(', ');
@@ -1089,13 +1103,15 @@
     const total = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0) + Number(o.delivery_fee || 0);
     const html = `<!DOCTYPE html><html lang="sl"><head><meta charset="UTF-8"><title>Naročilo — ${esc(o.customer_name)}</title>
       <style>
-        body{font-family:'Courier New',monospace; max-width:340px; margin:0 auto; padding:16px; color:#111;}
-        h2{margin:0 0 2px; font-size:1.2rem;}
-        .p-sub{font-size:.85rem; margin:0 0 12px; color:#444;}
-        .p-line{display:flex; justify-content:space-between; gap:10px; font-size:.92rem; padding:3px 0; border-bottom:1px dashed #ccc;}
-        .p-total{display:flex; justify-content:space-between; font-weight:700; font-size:1.05rem; margin-top:10px; padding-top:8px; border-top:2px solid #111;}
-        .p-meta{font-size:.88rem; margin:2px 0;}
-        @media print { body{padding:0;} }
+        @page { margin: 16mm; }
+        * { box-sizing: border-box; }
+        html, body { height: auto; }
+        body{font-family:Arial, Helvetica, sans-serif; color:#111; margin:0; padding:24px; font-size:16px; max-width:640px;}
+        h2{margin:0 0 4px; font-size:1.7rem;}
+        .p-sub{font-size:1rem; margin:0 0 20px; color:#444;}
+        .p-line{display:flex; justify-content:space-between; gap:14px; font-size:1.1rem; padding:7px 0; border-bottom:1px dashed #ccc;}
+        .p-total{display:flex; justify-content:space-between; font-weight:700; font-size:1.4rem; margin-top:16px; padding-top:12px; border-top:2px solid #111;}
+        .p-meta{font-size:1.05rem; margin:4px 0;}
       </style></head><body>
       <h2>${esc(ownerRestaurant ? ownerRestaurant.name : 'Naročilo')}</h2>
       <p class="p-sub">${new Date(o.placed_at).toLocaleString('sl-SI', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
@@ -1103,12 +1119,12 @@
       <p class="p-meta">${o.type === 'dostava' ? 'Dostava' : 'Prevzem'} &middot; Termin: ${esc(o.time_slot || '')}</p>
       ${o.address ? `<p class="p-meta">Naslov: ${esc(o.address)}</p>` : ''}
       <p class="p-meta">Plačilo: ${o.payment === 'kartica' ? 'Kartica' : 'Gotovina'} ob ${o.type === 'dostava' ? 'dostavi' : 'prevzemu'}</p>
-      <div style="margin-top:12px;">${items}</div>
+      <div style="margin-top:18px;">${items}</div>
       ${o.delivery_fee ? `<div class="p-line"><span>Strošek dostave</span><span>${eur(o.delivery_fee)}</span></div>` : ''}
       <div class="p-total"><span>Skupaj</span><span>${eur(total)}</span></div>
-      <script>window.onload = function(){ window.print(); };<\/script>
+      <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 150); };<\/script>
       </body></html>`;
-    const w = window.open('', '_blank', 'width=420,height=640');
+    const w = window.open('', '_blank', 'width=560,height=720');
     if (!w) { showToast('Brskalnik je blokiral pojavno okno — dovolite pojavna okna za natis.'); return; }
     w.document.open();
     w.document.write(html);
@@ -1147,11 +1163,26 @@
   window.__confirmReject = confirmReject;
 
   // ---------------- owner: meni ----------------
+  const SL_DAYS = ['Nedelja', 'Ponedeljek', 'Torek', 'Sreda', 'Četrtek', 'Petek', 'Sobota'];
+  function slDateLabel(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return dateStr;
+    return `${SL_DAYS[d.getDay()]}, ${d.toLocaleDateString('sl-SI')}`;
+  }
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+
   function catTimeLabel(cat) {
-    if (!cat.aktivna_od && !cat.aktivna_do) return '';
-    const od = cat.aktivna_od ? cat.aktivna_od.slice(0, 5) : '?';
-    const doo = cat.aktivna_do ? cat.aktivna_do.slice(0, 5) : '?';
-    return `<span class="pill-daily">Na voljo ${od}&ndash;${doo}</span>`;
+    const parts = [];
+    if (cat.je_malica) {
+      const stale = cat.malica_datum && cat.malica_datum !== todayStr();
+      parts.push(`<span class="pill-daily${stale ? ' pill-stale' : ''}">${cat.malica_datum ? slDateLabel(cat.malica_datum) : 'Malica'}${stale ? ' — morda ni več aktualno' : ''}</span>`);
+    }
+    if (cat.aktivna_od || cat.aktivna_do) {
+      const od = cat.aktivna_od ? cat.aktivna_od.slice(0, 5) : '?';
+      const doo = cat.aktivna_do ? cat.aktivna_do.slice(0, 5) : '?';
+      parts.push(`<span class="pill-daily">Na voljo ${od}&ndash;${doo}</span>`);
+    }
+    return parts.join(' ');
   }
 
   function renderOwnerMenu() {
@@ -1162,7 +1193,7 @@
         <h4>${esc(cat.name)} ${catTimeLabel(cat)}</h4>
         <div class="mm-row-actions">
           <button class="secondary-btn" type="button" onclick="window.__addItemForm('${cat.id}')">+ Jed</button>
-          <button class="icon-btn" type="button" title="Uredi uro razpoložljivosti" onclick="window.__editCatForm('${cat.id}')">&#9998;</button>
+          <button class="icon-btn" type="button" title="Uredi kategorijo" onclick="window.__editCatForm('${cat.id}')">&#9998;</button>
           <button class="icon-btn" type="button" title="Izbriši kategorijo" onclick="window.__deleteCategory('${cat.id}')">&times;</button>
         </div>
       </div>
@@ -1189,7 +1220,9 @@
           <div class="field-group"><label class="field-label">Na voljo od</label><input class="num-input" style="width:100%;" type="time" id="ec-from-${catId}" value="${cat.aktivna_od ? cat.aktivna_od.slice(0,5) : ''}"></div>
           <div class="field-group"><label class="field-label">Na voljo do</label><input class="num-input" style="width:100%;" type="time" id="ec-to-${catId}" value="${cat.aktivna_do ? cat.aktivna_do.slice(0,5) : ''}"></div>
         </div>
-        <p class="section-sub">Pustite prazno, če kategorija ni vezana na določeno uro (npr. za malice pustite npr. 11:00&ndash;14:00).</p>
+        <p class="section-sub">Pustite prazno, če kategorija ni vezana na določeno uro.</p>
+        <label class="chip-check" style="margin-top:4px;"><input type="checkbox" id="ec-malica-${catId}" ${cat.je_malica ? 'checked' : ''} onchange="window.__toggleEcMalica('${catId}')"> To je malica (dnevna ponudba z datumom)</label>
+        <input class="num-input" type="date" id="ec-date-${catId}" style="display:${cat.je_malica ? '' : 'none'}; margin-top:8px;" value="${cat.malica_datum || ''}">
         <div class="field-error" id="ec-error-${catId}"></div>
         <div class="inline-form-actions">
           <button class="secondary-btn" type="button" onclick="window.__cancelCatForm('${catId}')">Prekliči</button>
@@ -1199,6 +1232,14 @@
     `;
   }
   window.__editCatForm = editCatForm;
+
+  function toggleEcMalica(catId) {
+    const checked = document.getElementById('ec-malica-' + catId).checked;
+    const dateEl = document.getElementById('ec-date-' + catId);
+    dateEl.style.display = checked ? '' : 'none';
+    if (checked && !dateEl.value) dateEl.value = todayStr();
+  }
+  window.__toggleEcMalica = toggleEcMalica;
 
   function cancelCatForm(catId) {
     const el = document.getElementById('editCatForm-' + catId);
@@ -1210,10 +1251,12 @@
     const name = document.getElementById('ec-name-' + catId).value.trim();
     const aktivna_od = document.getElementById('ec-from-' + catId).value;
     const aktivna_do = document.getElementById('ec-to-' + catId).value;
+    const je_malica = document.getElementById('ec-malica-' + catId).checked;
+    const malica_datum = document.getElementById('ec-date-' + catId).value;
     const errEl = document.getElementById('ec-error-' + catId);
     if (!name) { errEl.textContent = 'Vpišite ime kategorije.'; return; }
     try {
-      await authedFetch('/owner/menu/categories/' + catId, { method: 'PATCH', body: { name, aktivna_od: aktivna_od || null, aktivna_do: aktivna_do || null } }, ownerToken());
+      await authedFetch('/owner/menu/categories/' + catId, { method: 'PATCH', body: { name, aktivna_od: aktivna_od || null, aktivna_do: aktivna_do || null, je_malica, malica_datum: malica_datum || null } }, ownerToken());
       await loadOwnerData();
       showToast('Kategorija shranjena.');
     } catch (e) {
@@ -1466,15 +1509,30 @@
   }
   window.__deleteCategory = deleteCategory;
 
+  document.getElementById('newCatMalica').addEventListener('change', function () {
+    document.getElementById('newCatDate').style.display = this.checked ? '' : 'none';
+    document.getElementById('newCatMalicaNote').style.display = this.checked ? '' : 'none';
+    if (this.checked && !document.getElementById('newCatDate').value) {
+      document.getElementById('newCatDate').value = new Date().toISOString().slice(0, 10);
+    }
+  });
+
   document.getElementById('addCatBtn').addEventListener('click', async () => {
     const input = document.getElementById('newCatName');
     const fromInput = document.getElementById('newCatFrom');
     const toInput = document.getElementById('newCatTo');
+    const malicaBox = document.getElementById('newCatMalica');
+    const dateInput = document.getElementById('newCatDate');
     const name = input.value.trim();
     if (!name) { showToast('Vpišite ime kategorije.'); return; }
     try {
-      await authedFetch('/owner/menu/categories', { method: 'POST', body: { name, aktivna_od: fromInput.value || null, aktivna_do: toInput.value || null } }, ownerToken());
+      await authedFetch('/owner/menu/categories', {
+        method: 'POST',
+        body: { name, aktivna_od: fromInput.value || null, aktivna_do: toInput.value || null, je_malica: malicaBox.checked, malica_datum: dateInput.value || null }
+      }, ownerToken());
       input.value = ''; fromInput.value = ''; toInput.value = '';
+      malicaBox.checked = false; dateInput.value = ''; dateInput.style.display = 'none';
+      document.getElementById('newCatMalicaNote').style.display = 'none';
       await loadOwnerData();
     } catch (e) { showToast(e.message); }
   });
