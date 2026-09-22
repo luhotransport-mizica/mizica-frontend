@@ -216,6 +216,14 @@ textarea.text-input{resize:vertical; min-height:70px;}
 .settings-block h4{font-family:var(--font-display); font-size:1rem; margin-bottom:10px; color:var(--ink);}
 .settings-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0;}
 .settings-row .lbl{font-size:.86rem;}
+
+.nearby-list{display:flex; flex-direction:column; gap:8px;}
+.nearby-row{display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; text-align:left; background:var(--bg-sunken); border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 14px; cursor:pointer; transition:background .15s,transform .15s; font-family:inherit;}
+.nearby-row:hover{transform:translateY(-1px); background:var(--bg-elev);}
+.nearby-row-main{display:flex; flex-direction:column; gap:2px;}
+.nearby-row-name{font-weight:700; font-size:.92rem; color:var(--ink);}
+.nearby-row-meta{font-size:.78rem; color:var(--ink-soft);}
+.nearby-row-dist{font-size:.78rem; font-weight:700; color:var(--ink-soft); background:var(--bg); border:1px solid var(--line); border-radius:999px; padding:3px 10px; flex-shrink:0; white-space:nowrap;}
 .num-input{width:80px; padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:var(--bg-sunken); color:var(--ink); font-size:.86rem;}
 .ddv-select{padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:var(--bg-sunken); color:var(--ink); font-size:.86rem;}
 .pay-matrix{border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px; margin-top:6px;}

@@ -156,6 +156,7 @@
       restaurants = await apiFetch('/restaurants');
       populateKuhinjaFilter();
       renderMarket();
+      renderAccountNearby();
     } catch (e) {
       document.getElementById('marketGrid').innerHTML = `<div class="error-note">Ne morem naložiti seznama gostiln (${esc(e.message)}). Backend se morda še zaganja — poskusite čez trenutek.</div>`;
     } finally {
@@ -595,6 +596,46 @@
         <div class="settings-row"><span class="lbl">Telefon</span><input class="text-input" style="max-width:220px;" value="${esc(meta.telefon||'')}" onchange="window.__updateAccountMeta('telefon',this.value)"></div>
         <div class="settings-row"><span class="lbl">Kraj</span><input class="text-input" style="max-width:220px;" value="${esc(meta.kraj||'')}" placeholder="npr. Brežice" list="siPlacesList" onchange="window.__updateAccountMeta('kraj',this.value)"></div>
         <p class="section-sub" id="accountKrajStatus" style="margin-top:4px;">${meta.kraj ? (meta.lat != null ? '' : 'Kraja ni bilo mogoče najti — filter "v bližini" ne bo deloval.') : ''}</p>
+        <div id="accountNearbyWrap"></div>
+      </div>
+    `;
+    renderAccountNearby();
+  }
+
+  // Gostilne v bližini shranjenega kraja stranke — prikažemo jih kar tu, na "Moj račun",
+  // da ni treba za to posebej hoditi na Ponudbo in vklapljati filtra.
+  function renderAccountNearby() {
+    const wrap = document.getElementById('accountNearbyWrap');
+    if (!wrap) return;
+    const meta = customerMeta();
+    if (meta.lat == null || meta.lng == null) { wrap.innerHTML = ''; return; }
+    const myCoords = { lat: meta.lat, lng: meta.lng };
+
+    const nearby = restaurants
+      .map((r) => ({ r, d: distanceKm(myCoords, { lat: r.lat, lng: r.lng }) }))
+      .filter((x) => x.d != null && x.d <= NEARBY_RADIUS_KM)
+      .sort((a, b) => a.d - b.d);
+
+    if (!restaurants.length) {
+      wrap.innerHTML = `<p class="section-sub" style="margin-top:10px;">Nalagam gostilne...</p>`;
+      return;
+    }
+    if (!nearby.length) {
+      wrap.innerHTML = `<p class="section-sub" style="margin-top:10px;">V bližini (do ${NEARBY_RADIUS_KM} km) trenutno ni gostiln na Mizici.</p>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <p class="section-sub" style="margin-top:14px; margin-bottom:8px;">Gostilne v bližini (do ${NEARBY_RADIUS_KM} km):</p>
+      <div class="nearby-list">
+        ${nearby.map(({ r, d }) => `
+          <button type="button" class="nearby-row" onclick="window.__openRestaurant('${r.id}')">
+            <span class="nearby-row-main">
+              <span class="nearby-row-name">${esc(r.name)}</span>
+              <span class="nearby-row-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''}</span>
+            </span>
+            <span class="nearby-row-dist">${d < 1 ? Math.round(d * 1000) + ' m' : d.toFixed(1) + ' km'}</span>
+          </button>
+        `).join('')}
       </div>
     `;
   }
@@ -624,6 +665,7 @@
       showToast('Shranjeno.');
       syncMyKrajFilterVisibility();
       renderMarket();
+      renderAccountNearby();
     } catch (e) {
       showToast(e.message);
     }
