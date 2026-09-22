@@ -605,7 +605,16 @@
         const statusEl = document.getElementById('accountKrajStatus');
         if (statusEl) statusEl.textContent = 'Iščem kraj...';
         const updatedMeta = await authedFetch('/customer/profile', { method: 'PATCH', body: { kraj: value } }, customerToken());
-        customerSession.user.user_metadata = updatedMeta;
+        // Kraj/koordinati shranimo prek lastnega API-ja (ne prek sb.auth.updateUser), zato Supabase
+        // seja v brskalniku (localStorage) o tem ne ve — brez osvežitve seje bi se ob naslednjem
+        // obisku strani prikazali stari podatki (kraj bi bil spet prazen). refreshSession pridobi
+        // nov žeton s trenutnimi podatki iz baze in ga tudi pravilno shrani.
+        const { data: refreshed, error: refreshErr } = await sb.auth.refreshSession();
+        if (!refreshErr && refreshed?.session) {
+          customerSession = refreshed.session;
+        } else {
+          customerSession.user.user_metadata = updatedMeta;
+        }
         if (statusEl) statusEl.textContent = updatedMeta.lat != null ? 'Kraj najden.' : 'Kraja ni bilo mogoče najti — filter "v bližini" ne bo deloval.';
       } else {
         const { data, error } = await sb.auth.updateUser({ data: Object.assign({}, customerMeta(), { [field]: value }) });
@@ -678,8 +687,9 @@
         customerSession = data.session;
         if (customerSession && kraj) {
           try {
-            const updatedMeta = await authedFetch('/customer/profile', { method: 'PATCH', body: { kraj } }, customerToken());
-            customerSession.user.user_metadata = updatedMeta;
+            await authedFetch('/customer/profile', { method: 'PATCH', body: { kraj } }, customerToken());
+            const { data: refreshed, error: refreshErr } = await sb.auth.refreshSession();
+            if (!refreshErr && refreshed?.session) customerSession = refreshed.session;
           } catch (e) { /* tiho — geolociranje ni obvezno za delovanje računa */ }
         }
       } else {
