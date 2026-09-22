@@ -258,11 +258,33 @@
   // RESTAVRACIJA + KOŠARICA
   // =================================================================
   let currentRestaurant = null; // polni objekt iz GET /restaurants/:id
+  // cart.lines: { [lineKey]: { itemId, variantId, addonIds:[], qty } }
+  // Jed brez izbrane velikosti/dodatkov ima lineKey enak kar itemId (nazaj združljivo s prejšnjim
+  // preprostim modelom). Jed z izbrano velikostjo in/ali dodatki dobi svojo vrstico v košarici za
+  // vsako kombinacijo, saj imajo lahko različne kombinacije različno ceno.
   let cart = { restaurantId: null, lines: {}, type: null, timeSlot: '', payment: '' };
 
   function cartCount() {
-    return Object.values(cart.lines).reduce((s, q) => s + q, 0);
+    return Object.values(cart.lines).reduce((s, l) => s + l.qty, 0);
   }
+
+  function itemCartQty(itemId) {
+    return Object.values(cart.lines).filter((l) => l.itemId === itemId).reduce((s, l) => s + l.qty, 0);
+  }
+
+  function lineKeyFor(itemId, variantId, addonIds) {
+    const a = (addonIds || []).slice().sort().join(',');
+    return itemId + (variantId ? ':v' + variantId : '') + (a ? ':a' + a : '');
+  }
+
+  function adjustCartLine(key, delta) {
+    const line = cart.lines[key];
+    if (!line) return;
+    line.qty += delta;
+    if (line.qty <= 0) delete cart.lines[key];
+    renderRestaurant();
+  }
+  window.__adjustCartLine = adjustCartLine;
 
   function findMenuItem(itemId) {
     if (!currentRestaurant) return null;
@@ -319,31 +341,87 @@
     renderCartPanel();
   }
 
+  function itemPriceLabel(it) {
+    const variants = it.menu_item_variants || [];
+    if (!variants.length) return eur(it.price);
+    const min = Math.min(...variants.map((v) => Number(v.price)));
+    return 'od ' + eur(min);
+  }
+
   function renderMenuItemRow(it) {
-    const qty = cart.lines[it.id] || 0;
     const unavailable = !it.available;
+    const hasOptions = (it.menu_item_variants && it.menu_item_variants.length) || (it.menu_item_addons && it.menu_item_addons.length);
+    const qty = cart.lines[it.id] ? cart.lines[it.id].qty : 0; // samo za jedi brez velikosti/dodatkov (ključ = kar id jedi)
+    const totalQty = itemCartQty(it.id);
     return `
       <div class="menu-item ${unavailable ? 'mi-unavailable' : ''}">
         <div class="mi-row-inner">
           ${it.photo_url ? `<img class="mi-photo" src="${esc(it.photo_url)}" alt="">` : ''}
           <div>
             <div class="mi-name">${esc(it.name)} ${it.daily ? '<span class="pill-daily">Dnevno</span>' : ''}</div>
-            <div class="mi-price-row"><span class="mi-price">${eur(it.price)}</span><span class="mi-ddv">DDV ${it.vat_rate}%</span></div>
+            <div class="mi-price-row"><span class="mi-price">${itemPriceLabel(it)}</span><span class="mi-ddv">DDV ${it.vat_rate}%</span></div>
             ${it.allergens ? `<div class="mi-allergens">Alergeni: ${esc(it.allergens)}</div>` : ''}
             ${unavailable ? '<div class="mi-unavailable-label">Trenutno ni na voljo</div>' : ''}
           </div>
         </div>
-        ${unavailable ? '' : (qty > 0
-          ? `<div class="mi-stepper"><button type="button" onclick="window.__changeQty('${it.id}',-1)">&minus;</button><span>${qty}</span><button type="button" onclick="window.__changeQty('${it.id}',1)">+</button></div>`
-          : `<button class="mi-add" type="button" onclick="window.__changeQty('${it.id}',1)">+</button>`)}
+        ${unavailable ? '' : (hasOptions
+          ? `<div class="mi-options-add">${totalQty > 0 ? `<span class="mi-in-cart">V košarici: ${totalQty}</span>` : ''}<button class="mi-add" type="button" onclick="window.__openItemOptionsModal('${it.id}')">+</button></div>`
+          : (qty > 0
+            ? `<div class="mi-stepper"><button type="button" onclick="window.__changeQty('${it.id}',-1)">&minus;</button><span>${qty}</span><button type="button" onclick="window.__changeQty('${it.id}',1)">+</button></div>`
+            : `<button class="mi-add" type="button" onclick="window.__changeQty('${it.id}',1)">+</button>`))}
       </div>
     `;
   }
 
+  // Jed z velikostmi in/ali dodatki: preden gre v košarico, stranka izbere kombinacijo v modalnem oknu
+  // (cena je namreč odvisna od izbire, zato preprost "+" gumb tu ne zadostuje).
+  function openItemOptionsModal(itemId) {
+    const it = findMenuItem(itemId);
+    if (!it) return;
+    const variants = it.menu_item_variants || [];
+    const addons = it.menu_item_addons || [];
+    openModal(`
+      <h3>${esc(it.name)}</h3>
+      ${variants.length ? `
+      <div class="field-group">
+        <label class="field-label">Velikost</label>
+        <div class="option-list">
+          ${variants.map((v, i) => `<label class="chip-check"><input type="radio" name="optVariant" value="${v.id}" ${i === 0 ? 'checked' : ''}> ${esc(v.name)} — ${eur(v.price)}</label>`).join('')}
+        </div>
+      </div>` : ''}
+      ${addons.length ? `
+      <div class="field-group">
+        <label class="field-label">Dodatki</label>
+        <div class="option-list">
+          ${addons.map((a) => `<label class="chip-check"><input type="checkbox" name="optAddon" value="${a.id}"> ${esc(a.name)} (+${eur(a.price)})</label>`).join('')}
+        </div>
+      </div>` : ''}
+      <div class="modal-close-row">
+        <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__confirmAddToCart('${itemId}')">Dodaj v košarico</button>
+      </div>
+    `);
+  }
+  window.__openItemOptionsModal = openItemOptionsModal;
+
+  function confirmAddToCart(itemId) {
+    const variantEl = document.querySelector('input[name="optVariant"]:checked');
+    const variantId = variantEl ? variantEl.value : null;
+    const addonIds = Array.from(document.querySelectorAll('input[name="optAddon"]:checked')).map((el) => el.value);
+    const key = lineKeyFor(itemId, variantId, addonIds);
+    if (cart.lines[key]) cart.lines[key].qty += 1;
+    else cart.lines[key] = { itemId, variantId, addonIds, qty: 1 };
+    closeModal();
+    renderRestaurant();
+    showToast('Dodano v košarico.');
+  }
+  window.__confirmAddToCart = confirmAddToCart;
+
   function changeQty(itemId, delta) {
-    const cur = cart.lines[itemId] || 0;
+    const cur = cart.lines[itemId] ? cart.lines[itemId].qty : 0;
     const next = Math.max(0, cur + delta);
-    if (next === 0) delete cart.lines[itemId]; else cart.lines[itemId] = next;
+    if (next === 0) delete cart.lines[itemId];
+    else cart.lines[itemId] = { itemId, variantId: null, addonIds: [], qty: next };
     renderRestaurant();
   }
   window.__changeQty = changeQty;
@@ -352,9 +430,21 @@
     const panel = document.getElementById('cartPanel');
     if (!panel) return;
     const r = currentRestaurant;
-    const lines = Object.entries(cart.lines).map(([id, qty]) => {
-      const it = findMenuItem(id);
-      return it ? { name: it.name, qty, price: it.price, vat_rate: it.vat_rate } : null;
+    const lines = Object.entries(cart.lines).map(([key, line]) => {
+      const it = findMenuItem(line.itemId);
+      if (!it) return null;
+      let price = Number(it.price);
+      let variantName = null;
+      if (line.variantId) {
+        const v = (it.menu_item_variants || []).find((v) => v.id === line.variantId);
+        if (v) { price = Number(v.price); variantName = v.name; }
+      }
+      const addonNames = [];
+      for (const aid of line.addonIds || []) {
+        const a = (it.menu_item_addons || []).find((a) => a.id === aid);
+        if (a) { price += Number(a.price); addonNames.push(a.name); }
+      }
+      return { key, name: it.name, variantName, addonNames, qty: line.qty, price, vat_rate: it.vat_rate };
     }).filter(Boolean);
 
     document.getElementById('cartFabBadge').textContent = cartCount();
@@ -388,7 +478,16 @@
 
     panel.innerHTML = `
       <h3>Vaše naročilo</h3>
-      ${lines.map((l) => `<div class="cart-line"><span class="name">${l.qty}&times; ${esc(l.name)}</span><span>${eur(l.price * l.qty)}</span></div>`).join('')}
+      ${lines.map((l) => `
+        <div class="cart-line">
+          <span class="name">
+            <span class="mi-stepper cart-line-stepper"><button type="button" onclick="window.__adjustCartLine('${l.key}',-1)">&minus;</button><span>${l.qty}</span><button type="button" onclick="window.__adjustCartLine('${l.key}',1)">+</button></span>
+            ${esc(l.name)}${l.variantName ? ` <span class="cart-line-sub">(${esc(l.variantName)})</span>` : ''}
+            ${l.addonNames.length ? `<div class="cart-line-addons">+ ${l.addonNames.map(esc).join(', ')}</div>` : ''}
+          </span>
+          <span>${eur(l.price * l.qty)}</span>
+        </div>
+      `).join('')}
       ${deliveryFee ? `<div class="cart-sub"><span>Strošek dostave</span><span>${eur(deliveryFee)}</span></div>` : ''}
       <div class="cart-total"><span>Skupaj</span><span>${eur(total)}</span></div>
       <div class="cart-vat-note">Plačilo neposredno gostilni ob prevzemu/dostavi.<br>Mizica ne obdeluje plačil.</div>
@@ -461,7 +560,7 @@
     if (cart.type === 'dostava' && !address) return (errEl.textContent = 'Za dostavo vpišite naslov.');
     if (!cart.payment) return (errEl.textContent = 'Izberite način plačila.');
 
-    const items = Object.entries(cart.lines).map(([item_id, qty]) => ({ item_id, qty }));
+    const items = Object.values(cart.lines).map((l) => ({ item_id: l.itemId, qty: l.qty, variant_id: l.variantId || undefined, addon_ids: l.addonIds && l.addonIds.length ? l.addonIds : undefined }));
     if (!items.length) return (errEl.textContent = 'Košarica je prazna.');
 
     const btn = document.getElementById('placeOrderBtn');
@@ -505,7 +604,7 @@
         <h1>Naročilo oddano</h1>
         <p class="section-sub" style="margin:6px 0 18px;">${esc(restaurantName)} je prejela vaše naročilo.</p>
         <div class="confirm-box">
-          ${(order.items || []).map((i) => `<div class="confirm-row"><span>${i.qty}&times; ${esc(i.name)}</span><span>${eur(i.price * i.qty)}</span></div>`).join('')}
+          ${(order.items || []).map((i) => `<div class="confirm-row"><span>${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' <span class="confirm-row-sub">(' + esc(i.variant_name) + ')</span>' : ''}${(i.addons && i.addons.length) ? '<br><span class="confirm-row-sub">+ ' + i.addons.map((a) => esc(a.name)).join(', ') + '</span>' : ''}</span><span>${eur(i.price * i.qty)}</span></div>`).join('')}
           ${order.delivery_fee ? `<div class="confirm-row"><span>Strošek dostave</span><span>${eur(order.delivery_fee)}</span></div>` : ''}
           <div class="confirm-row total"><span>Skupaj za plačilo</span><span>${eur(grandTotal)}</span></div>
           ${vat && vat.rows && vat.rows.length ? `
@@ -683,7 +782,7 @@
     wrap.innerHTML = customerOrders.map((o) => {
       const rest = o.restaurants || {};
       const total = o.vat ? o.vat.grandTotal : 0;
-      const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}`).join(', ');
+      const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' (' + esc(i.variant_name) + ')' : ''}${(i.addons && i.addons.length) ? ' +' + i.addons.map((a) => esc(a.name)).join(', +') : ''}`).join(', ');
       return `
         <div class="order-card">
           <div class="order-card-top">
@@ -919,7 +1018,7 @@
   }
 
   function renderOwnerOrderCard(o) {
-    const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}`).join(', ');
+    const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' (' + esc(i.variant_name) + ')' : ''}${(i.addons && i.addons.length) ? ' +' + i.addons.map((a) => esc(a.name)).join(', +') : ''}`).join(', ');
     const total = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0) + Number(o.delivery_fee || 0);
     const next = STATUS_NEXT_LABEL[o.status];
     return `
@@ -995,6 +1094,9 @@
   }
 
   function renderOwnerMenuRow(it) {
+    const vCount = (it.menu_item_variants || []).length;
+    const aCount = (it.menu_item_addons || []).length;
+    const optsLabel = (vCount || aCount) ? `Velikosti/dodatki (${vCount}/${aCount})` : 'Velikosti/dodatki';
     return `
       <div class="mm-row" id="mmrow-${it.id}">
         <div class="mm-name">
@@ -1002,13 +1104,101 @@
           ${esc(it.name)} <span class="mi-ddv">${eur(it.price)} &middot; DDV ${it.vat_rate}%</span> ${it.daily ? '<span class="pill-daily">Dnevno</span>' : ''}
         </div>
         <div class="mm-row-actions">
+          <button class="secondary-btn" type="button" onclick="window.__editVariantsAddonsForm('${it.id}')">${optsLabel}</button>
           <label class="switch"><input type="checkbox" ${it.available ? 'checked' : ''} onchange="window.__toggleItemAvailable('${it.id}', this.checked)"><span class="switch-track"></span><span class="switch-thumb"></span></label>
           <button class="icon-btn" type="button" title="Uredi" onclick="window.__editItemForm('${it.id}')">&#9998;</button>
           <button class="icon-btn" type="button" title="Izbriši" onclick="window.__deleteItem('${it.id}')">&times;</button>
         </div>
       </div>
+      <div id="voaForm-${it.id}"></div>
     `;
   }
+
+  // ---------------- owner: velikosti (variante) in dodatki jedi ----------------
+  function voaRowHtml(kind, itemId, row, idx) {
+    const key = kind + '-' + itemId + '-' + idx;
+    return `
+      <div class="voa-row" id="voarow-${key}" data-kind="${kind}">
+        <input class="text-input" id="voa-name-${key}" placeholder="${kind === 'variant' ? 'Npr. Veliko' : 'Npr. Extra sir'}" value="${esc(row.name || '')}">
+        <input class="num-input" id="voa-price-${key}" type="number" step="0.01" placeholder="Cena €" value="${row.price != null ? row.price : ''}">
+        <button class="icon-btn" type="button" title="Odstrani" onclick="window.__removeVoaRow('${key}')">&times;</button>
+      </div>
+    `;
+  }
+
+  function editVariantsAddonsForm(itemId) {
+    document.querySelectorAll('[id^="voaForm-"]').forEach((el) => (el.innerHTML = ''));
+    const it = findOwnerItem(itemId);
+    if (!it) return;
+    const variants = (it.menu_item_variants || []).map((v) => ({ name: v.name, price: v.price }));
+    const addons = (it.menu_item_addons || []).map((a) => ({ name: a.name, price: a.price }));
+    const wrap = document.getElementById('voaForm-' + itemId);
+    wrap.innerHTML = `
+      <div class="inline-form">
+        <h5 style="margin:0 0 6px;">Velikosti (npr. Malo / Veliko)</h5>
+        <p class="section-sub" style="margin:0 0 8px;">Če dodate velikosti, bo stranka izbrala eno izmed njih namesto osnovne cene jedi.</p>
+        <div id="voa-variants-${itemId}">${variants.map((v, i) => voaRowHtml('variant', itemId, v, i)).join('')}</div>
+        <button class="secondary-btn" type="button" style="margin-top:6px;" onclick="window.__addVoaRow('variant','${itemId}')">+ Velikost</button>
+        <h5 style="margin:16px 0 6px;">Dodatki (npr. extra sir)</h5>
+        <p class="section-sub" style="margin:0 0 8px;">Stranka lahko izbere poljubno število dodatkov, vsak podraži naročilo za navedeni znesek.</p>
+        <div id="voa-addons-${itemId}">${addons.map((a, i) => voaRowHtml('addon', itemId, a, i)).join('')}</div>
+        <button class="secondary-btn" type="button" style="margin-top:6px;" onclick="window.__addVoaRow('addon','${itemId}')">+ Dodatek</button>
+        <div class="field-error" id="voa-error-${itemId}"></div>
+        <div class="inline-form-actions">
+          <button class="secondary-btn" type="button" onclick="window.__cancelVoaForm('${itemId}')">Prekliči</button>
+          <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__saveVoaForm('${itemId}')">Shrani</button>
+        </div>
+      </div>
+    `;
+  }
+  window.__editVariantsAddonsForm = editVariantsAddonsForm;
+
+  function cancelVoaForm(itemId) {
+    const el = document.getElementById('voaForm-' + itemId);
+    if (el) el.innerHTML = '';
+  }
+  window.__cancelVoaForm = cancelVoaForm;
+
+  function addVoaRow(kind, itemId) {
+    const listWrap = document.getElementById('voa-' + (kind === 'variant' ? 'variants' : 'addons') + '-' + itemId);
+    const idx = listWrap.children.length;
+    listWrap.insertAdjacentHTML('beforeend', voaRowHtml(kind, itemId, {}, idx));
+  }
+  window.__addVoaRow = addVoaRow;
+
+  function removeVoaRow(key) {
+    const el = document.getElementById('voarow-' + key);
+    if (el) el.remove();
+  }
+  window.__removeVoaRow = removeVoaRow;
+
+  function collectVoaRows(kind, itemId) {
+    const listWrap = document.getElementById('voa-' + (kind === 'variant' ? 'variants' : 'addons') + '-' + itemId);
+    const rows = [];
+    listWrap.querySelectorAll('.voa-row').forEach((rowEl) => {
+      const nameInput = rowEl.querySelector('input.text-input');
+      const priceInput = rowEl.querySelector('input.num-input');
+      const name = nameInput ? nameInput.value.trim() : '';
+      const price = priceInput ? priceInput.value : '';
+      if (name && !isNaN(parseFloat(price))) rows.push({ name, price: parseFloat(price) });
+    });
+    return rows;
+  }
+
+  async function saveVoaForm(itemId) {
+    const errEl = document.getElementById('voa-error-' + itemId);
+    const variants = collectVoaRows('variant', itemId);
+    const addons = collectVoaRows('addon', itemId);
+    try {
+      await authedFetch('/owner/menu/items/' + itemId + '/variants', { method: 'PUT', body: { variants } }, ownerToken());
+      await authedFetch('/owner/menu/items/' + itemId + '/addons', { method: 'PUT', body: { addons } }, ownerToken());
+      await loadOwnerData();
+      showToast('Velikosti in dodatki shranjeni.');
+    } catch (e) {
+      if (errEl) errEl.textContent = e.message; else showToast(e.message);
+    }
+  }
+  window.__saveVoaForm = saveVoaForm;
 
   function findOwnerItem(id) {
     for (const cat of ownerMenu) {
