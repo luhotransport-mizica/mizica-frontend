@@ -949,6 +949,14 @@
         </div>
       </div>
       <div class="settings-block">
+        <h4>Javna povezava do vaše ponudbe</h4>
+        <p class="section-sub" style="margin-bottom:8px;">To povezavo delite na družbenih omrežjih ali kjerkoli drugje — stranke pridejo neposredno na vaš meni.</p>
+        <div class="share-link-row">
+          <input class="text-input" style="flex:1;" type="text" readonly id="shareLinkInput" value="${esc(shareLinkFor(r.id))}">
+          <button class="secondary-btn" type="button" onclick="window.__copyShareLink()">Kopiraj povezavo</button>
+        </div>
+      </div>
+      <div class="settings-block">
         <h4>Logotip gostilne</h4>
         <p class="section-sub" style="margin-bottom:8px;">Prikaže se na kartici gostilne in pri naročanju.</p>
         <div class="upload-row">
@@ -962,6 +970,21 @@
       </div>
     `;
   }
+
+  function shareLinkFor(restaurantId) {
+    return `${window.location.origin}${window.location.pathname}?r=${restaurantId}`;
+  }
+  function copyShareLink() {
+    const input = document.getElementById('shareLinkInput');
+    if (!input) return;
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => {
+      showToast('Povezava kopirana.');
+    }).catch(() => {
+      showToast('Kopiranje ni uspelo — povezavo izberite ročno.');
+    });
+  }
+  window.__copyShareLink = copyShareLink;
 
   async function uploadLogo(file) {
     if (!file) return;
@@ -1324,6 +1347,27 @@
     }
   });
 
-  // ---------------- zagon ----------------
+  // ---------------- zagon: ločene "povezave" za ponudbo / gostilne / skrbnika ----------------
+  // Privzeto (npr. mizica-frontend.onrender.com) je viden samo javni meni ponudbe.
+  // Gostilne in skrbnik dostopajo prek svoje lastne povezave (?gostilna oz. ?skrbnik),
+  // ki jo dobijo neposredno od nas — v splošni navigaciji ni vidna.
+  const startParams = new URLSearchParams(window.location.search);
+  const shareRestaurantId = startParams.get('r');
+  const wantsOwner = startParams.has('gostilna');
+  const wantsAdmin = startParams.has('skrbnik');
+
+  if (wantsOwner || pendingAuthType) document.getElementById('navOwnerBtn').style.display = '';
+  if (wantsAdmin) document.getElementById('navAdminBtn').style.display = '';
+  // Če je uporabnik kliknil povezavo za nastavitev/obnovitev gesla, ne vemo vnaprej, ali je
+  // lastnik gostilne ali skrbnik — pokažemo oba zavihka, da lahko izbere pravega.
+  if (pendingAuthType) document.getElementById('navAdminBtn').style.display = '';
+
   loadMarket();
+  if (shareRestaurantId) {
+    openRestaurant(shareRestaurantId);
+  } else if (wantsAdmin) {
+    goToView('admin');
+  } else if (wantsOwner || pendingAuthType) {
+    goToView('owner');
+  }
 })();
