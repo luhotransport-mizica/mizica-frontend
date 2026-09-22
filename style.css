@@ -370,3 +370,19 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .loading-note{color:var(--ink-soft); font-size:.9rem; padding:30px 4px; text-align:center;}
 .error-note{color:var(--red); font-size:.9rem; padding:14px; text-align:center; background:var(--red-soft); border-radius:var(--radius-sm); margin:14px 0;}
 .field-error{color:var(--red); font-size:.82rem; margin-top:8px; min-height:1em;}
+
+/* ---------------- popusti in točke zvestobe ---------------- */
+.loyalty-badge{font-size:.8rem; font-weight:600; color:var(--gold); margin:2px 0 0;}
+.cart-discount-row{color:var(--green); font-weight:600;}
+.discount-apply-row{display:flex; gap:8px;}
+.discount-apply-row input{flex:1;}
+.discount-code-row{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:9px 10px; border:1px solid var(--line); border-radius:var(--radius-sm); margin-bottom:8px; background:var(--bg-sunken);}
+.discount-code-row.inactive{opacity:.55;}
+.dc-main{display:flex; align-items:center; gap:8px;}
+.dc-code{font-weight:700; letter-spacing:.02em;}
+.dc-percent{background:var(--gold-soft); color:var(--gold); font-weight:700; font-size:.8rem; padding:2px 8px; border-radius:999px;}
+.dc-meta{display:flex; flex-direction:column; gap:2px; font-size:.76rem; color:var(--ink-soft);}
+.dc-actions{display:flex; align-items:center; gap:12px;}
+.dc-actions .link-btn.danger{color:var(--red); margin:0;}
+.add-discount-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+.add-discount-row input{flex:1; min-width:110px;}

@@ -277,7 +277,7 @@
   // Jed brez izbrane velikosti/dodatkov ima lineKey enak kar itemId (nazaj združljivo s prejšnjim
   // preprostim modelom). Jed z izbrano velikostjo in/ali dodatki dobi svojo vrstico v košarici za
   // vsako kombinacijo, saj imajo lahko različne kombinacije različno ceno.
-  let cart = { restaurantId: null, lines: {}, type: null, timeSlot: '', payment: '' };
+  let cart = { restaurantId: null, lines: {}, type: null, timeSlot: '', payment: '', discountCode: '', discountPercent: 0, redeemPoints: 0 };
 
   function cartCount() {
     return Object.values(cart.lines).reduce((s, l) => s + l.qty, 0);
@@ -314,8 +314,10 @@
     goToView('restaurant');
     document.getElementById('restaurantContent').innerHTML = '<div class="loading-note">Nalagam gostilno...</div>';
     try {
-      currentRestaurant = await apiFetch('/restaurants/' + id);
-      if (cart.restaurantId !== id) cart = { restaurantId: id, lines: {}, type: null, timeSlot: '', payment: '' };
+      currentRestaurant = customerToken()
+        ? await authedFetch('/restaurants/' + id, {}, customerToken())
+        : await apiFetch('/restaurants/' + id);
+      if (cart.restaurantId !== id) cart = { restaurantId: id, lines: {}, type: null, timeSlot: '', payment: '', discountCode: '', discountPercent: 0, redeemPoints: 0 };
       renderRestaurant();
     } catch (e) {
       document.getElementById('restaurantContent').innerHTML = `<div class="error-note">Gostilne ni bilo mogoče naložiti (${esc(e.message)}).</div>`;
@@ -345,6 +347,7 @@
               <h1>${esc(r.name)}</h1>
               <p class="r-card-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''} &middot; ${r.odpira_od ? r.odpira_od.slice(0,5) : ''}&ndash;${r.odpira_do ? r.odpira_do.slice(0,5) : ''}</p>
               ${ratingLabel(r) ? `<div class="r-card-rating">${ratingLabel(r)}</div>` : ''}
+              ${r.loyalty_enabled ? `<p class="loyalty-badge">&#9733; Zbirajte točke zvestobe${customerToken() ? ` &middot; imate jih ${r.loyalty_balance || 0}` : ''}</p>` : ''}
               ${r.address ? `<p class="rd-address">${esc(r.address)}</p><a class="map-link-btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}">Odpri na zemljevidu</a>` : ''}
             </div>
           </div>
@@ -490,8 +493,13 @@
 
     const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
     const deliveryFee = cart.type === 'dostava' ? Number(r.dostava_strosek || 0) : 0;
-    const total = subtotal + deliveryFee;
     const belowMin = cart.type === 'dostava' && subtotal < Number(r.dostava_min_znesek || 0);
+
+    const codeDiscount = cart.discountPercent > 0 ? Math.round(subtotal * (cart.discountPercent / 100) * 100) / 100 : 0;
+    const maxRedeemable = r.loyalty_redeem_value > 0 ? Math.min(r.loyalty_balance || 0, Math.floor(Math.max(0, subtotal - codeDiscount) / r.loyalty_redeem_value)) : 0;
+    if (cart.redeemPoints > maxRedeemable) cart.redeemPoints = maxRedeemable;
+    const pointsDiscount = cart.redeemPoints > 0 ? Math.round(cart.redeemPoints * r.loyalty_redeem_value * 100) / 100 : 0;
+    const total = Math.max(0, subtotal - codeDiscount - pointsDiscount) + deliveryFee;
 
     const typeChoices = [];
     if (r.prevzem_enabled) typeChoices.push('prevzem');
@@ -521,9 +529,26 @@
           <span>${eur(l.price * l.qty)}</span>
         </div>
       `).join('')}
+      ${codeDiscount > 0 ? `<div class="cart-sub cart-discount-row"><span>Popust (${esc(cart.discountCode)}, -${cart.discountPercent}%)</span><span>&minus;${eur(codeDiscount)}</span></div>` : ''}
+      ${pointsDiscount > 0 ? `<div class="cart-sub cart-discount-row"><span>Točke zvestobe (${cart.redeemPoints})</span><span>&minus;${eur(pointsDiscount)}</span></div>` : ''}
       ${deliveryFee ? `<div class="cart-sub"><span>Strošek dostave</span><span>${eur(deliveryFee)}</span></div>` : ''}
       <div class="cart-total"><span>Skupaj</span><span>${eur(total)}</span></div>
       <div class="cart-vat-note">Plačilo neposredno gostilni ob prevzemu/dostavi.<br>Mizica ne obdeluje plačil.</div>
+
+      <div class="field-group">
+        <label class="field-label">Koda za popust</label>
+        <div class="discount-apply-row">
+          <input class="text-input" id="cartDiscountCode" placeholder="Vpišite kodo" style="text-transform:uppercase;" value="${esc(cart.discountCode || '')}">
+          <button class="secondary-btn" type="button" id="applyDiscountBtn">Uporabi</button>
+        </div>
+        <div class="field-error" id="cartDiscountError"></div>
+      </div>
+
+      ${(r.loyalty_enabled && (r.loyalty_balance || 0) > 0) ? `
+      <div class="field-group">
+        <label class="field-label">Unovči točke zvestobe (na voljo: ${r.loyalty_balance})</label>
+        <input class="num-input" id="cartRedeemPoints" type="number" min="0" max="${maxRedeemable}" value="${cart.redeemPoints || 0}" style="width:120px;">
+      </div>` : ''}
 
       ${typeChoices.length > 1 ? `
       <div class="field-group">
@@ -570,6 +595,32 @@
     `;
 
     document.getElementById('placeOrderBtn').addEventListener('click', placeOrder);
+    document.getElementById('applyDiscountBtn').addEventListener('click', applyDiscountCode);
+    const redeemInput = document.getElementById('cartRedeemPoints');
+    if (redeemInput) redeemInput.addEventListener('change', () => {
+      cart.redeemPoints = Math.max(0, parseInt(redeemInput.value, 10) || 0);
+      renderCartPanel();
+    });
+  }
+
+  async function applyDiscountCode() {
+    const input = document.getElementById('cartDiscountCode');
+    const errEl = document.getElementById('cartDiscountError');
+    const code = input.value.trim().toUpperCase();
+    errEl.textContent = '';
+    if (!code) { cart.discountCode = ''; cart.discountPercent = 0; renderCartPanel(); return; }
+    try {
+      const q = customerToken()
+        ? await authedFetch(`/discount-codes/check?restaurant_id=${currentRestaurant.id}&code=${encodeURIComponent(code)}`, {}, customerToken())
+        : await apiFetch(`/discount-codes/check?restaurant_id=${currentRestaurant.id}&code=${encodeURIComponent(code)}`);
+      cart.discountCode = code;
+      cart.discountPercent = q.percent;
+      renderCartPanel();
+      showToast(`Koda uporabljena: -${q.percent}%`);
+    } catch (e) {
+      cart.discountCode = ''; cart.discountPercent = 0;
+      errEl.textContent = e.message;
+    }
   }
 
   function setCartType(t) { cart.type = t; cart.timeSlot = ''; renderCartPanel(); }
@@ -602,12 +653,14 @@
       const orderBody = {
         restaurant_id: currentRestaurant.id, customer_name: name, phone,
         type: cart.type, address: cart.type === 'dostava' ? address : undefined,
-        time_slot: timeSlot, payment: cart.payment, items
+        time_slot: timeSlot, payment: cart.payment, items,
+        discount_code: cart.discountCode || undefined,
+        redeem_points: cart.redeemPoints || undefined
       };
       const result = customerToken()
         ? await authedFetch('/orders', { method: 'POST', body: orderBody }, customerToken())
         : await apiFetch('/orders', { method: 'POST', body: orderBody });
-      cart = { restaurantId: null, lines: {}, type: null, timeSlot: '', payment: '' };
+      cart = { restaurantId: null, lines: {}, type: null, timeSlot: '', payment: '', discountCode: '', discountPercent: 0, redeemPoints: 0 };
       renderConfirm(result.order, result.vat, currentRestaurant.name);
       goToView('confirm');
     } catch (e) {
@@ -638,6 +691,8 @@
         <p class="section-sub" style="margin:6px 0 18px;">${esc(restaurantName)} je prejela vaše naročilo.</p>
         <div class="confirm-box">
           ${(order.items || []).map((i) => `<div class="confirm-row"><span>${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' <span class="confirm-row-sub">(' + esc(i.variant_name) + ')</span>' : ''}${(i.addons && i.addons.length) ? '<br><span class="confirm-row-sub">+ ' + i.addons.map((a) => esc(a.name)).join(', ') + '</span>' : ''}</span><span>${eur(i.price * i.qty)}</span></div>`).join('')}
+          ${Number(order.discount_amount || 0) > 0 ? `<div class="confirm-row"><span>Popust</span><span>&minus;${eur(order.discount_amount)}</span></div>` : ''}
+          ${Number(order.loyalty_discount_amount || 0) > 0 ? `<div class="confirm-row"><span>Točke zvestobe (${order.loyalty_points_used})</span><span>&minus;${eur(order.loyalty_discount_amount)}</span></div>` : ''}
           ${order.delivery_fee ? `<div class="confirm-row"><span>Strošek dostave</span><span>${eur(order.delivery_fee)}</span></div>` : ''}
           <div class="confirm-row total"><span>Skupaj za plačilo</span><span>${eur(grandTotal)}</span></div>
           ${vat && vat.rows && vat.rows.length ? `
@@ -834,7 +889,9 @@
             <span class="tag gold">${esc(CUSTOMER_STATUS_LABEL[o.status] || o.status)}</span>
           </div>
           <p class="order-items-line">${items}</p>
+          ${Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0) > 0 ? `<p class="order-items-line">Popust: &minus;${eur(Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0))}</p>` : ''}
           <p class="order-total-line">${eur(total)}</p>
+          ${Number(o.loyalty_points_earned || 0) > 0 ? `<p class="order-items-line">Prislužene točke zvestobe: +${o.loyalty_points_earned}</p>` : ''}
           ${reviewHtml}
         </div>
       `;
@@ -948,6 +1005,7 @@
   let ownerRestaurant = null;
   let ownerMenu = [];
   let ownerOrders = [];
+  let ownerDiscountCodes = [];
   let ownerInited = false;
 
   function ownerToken() { return ownerSession && ownerSession.access_token; }
@@ -1027,9 +1085,11 @@
       }
       ownerOrders = await authedFetch('/owner/orders', {}, token);
       ownerKnownOrderIds = new Set(ownerOrders.map((o) => o.id));
+      try { ownerDiscountCodes = await authedFetch('/owner/discount-codes', {}, token); } catch (e2) { ownerDiscountCodes = []; }
       renderOwnerBoard();
       renderOwnerMenu();
       renderOwnerSettings();
+      renderOwnerLoyalty();
     } catch (e) {
       showToast('Napaka pri nalaganju: ' + e.message);
     }
@@ -1150,7 +1210,9 @@
 
   function renderOwnerOrderCard(o) {
     const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' (' + esc(i.variant_name) + ')' : ''}${(i.addons && i.addons.length) ? ' +' + i.addons.map((a) => esc(a.name)).join(', +') : ''}`).join(', ');
-    const total = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0) + Number(o.delivery_fee || 0);
+    const itemsSubtotal = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0);
+    const discountTotal = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
+    const total = Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0);
     const next = STATUS_NEXT_LABEL[o.status];
     return `
       <div class="order-card ${o.status === 'novo' ? 'is-new' : ''}">
@@ -1166,6 +1228,7 @@
         <div class="order-items">${items}</div>
         ${o.address ? `<div class="order-items">Naslov: ${esc(o.address)}</div>` : ''}
         <div class="order-items">Tel: ${esc(o.phone)}</div>
+        ${discountTotal > 0 ? `<div class="order-items">Popust: &minus;${eur(discountTotal)}${o.discount_code_id && o.loyalty_points_used ? ' (koda + točke)' : (o.loyalty_points_used ? ' (točke)' : ' (koda)')}</div>` : ''}
         <div class="order-total">${eur(total)}</div>
         ${o.rejection_reason ? `<div class="order-reject">${esc(o.rejection_reason)}</div>` : ''}
         <div class="order-actions">
@@ -1187,7 +1250,9 @@
       if (i.addons && i.addons.length) sub.push('+ ' + i.addons.map((a) => esc(a.name)).join(', +'));
       return `<div class="p-line"><span>${i.qty}&times; ${esc(i.name)}${sub.length ? ' (' + sub.join(', ') + ')' : ''}</span><span>${eur(i.price * i.qty)}</span></div>`;
     }).join('');
-    const total = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0) + Number(o.delivery_fee || 0);
+    const printSubtotal = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0);
+    const printDiscount = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
+    const total = Math.max(0, printSubtotal - printDiscount) + Number(o.delivery_fee || 0);
     const html = `<!DOCTYPE html><html lang="sl"><head><meta charset="UTF-8"><title>Naročilo — ${esc(o.customer_name)}</title>
       <style>
         @page { margin: 16mm; }
@@ -1210,6 +1275,7 @@
       ${o.address ? `<p class="p-meta">Naslov: ${esc(o.address)}</p>` : ''}
       <p class="p-meta">Plačilo: ${o.payment === 'kartica' ? 'Kartica' : 'Gotovina'} ob ${o.type === 'dostava' ? 'dostavi' : 'prevzemu'}</p>
       <div style="margin-top:18px;">${items}</div>
+      ${printDiscount > 0 ? `<div class="p-line"><span>Popust</span><span>&minus;${eur(printDiscount)}</span></div>` : ''}
       ${o.delivery_fee ? `<div class="p-line"><span>Strošek dostave</span><span>${eur(o.delivery_fee)}</span></div>` : ''}
       <div class="p-total"><span>Skupaj</span><span>${eur(total)}</span></div>
       </body></html>`;
@@ -1685,6 +1751,104 @@
       </div>
     `;
   }
+
+  // ---------------- owner: popusti in točke zvestobe ----------------
+  function renderOwnerLoyalty() {
+    const r = ownerRestaurant;
+    const wrap = document.getElementById('ownerLoyaltyPanel');
+    if (!wrap || !r) return;
+
+    const codesRows = (ownerDiscountCodes || []).map((c) => {
+      const veljavnost = (c.valid_from || c.valid_until)
+        ? `${c.valid_from ? slDateLabel(c.valid_from) : '—'} do ${c.valid_until ? slDateLabel(c.valid_until) : '—'}`
+        : 'brez časovne omejitve';
+      const uporabe = `${c.uses_count || 0}${c.max_uses != null ? ' / ' + c.max_uses : ''}` + (c.max_uses_per_customer != null ? `, max ${c.max_uses_per_customer}/stranko` : '');
+      return `
+        <div class="discount-code-row${c.active ? '' : ' inactive'}">
+          <div class="dc-main">
+            <span class="dc-code">${esc(c.code)}</span>
+            <span class="dc-percent">-${c.percent}%</span>
+          </div>
+          <div class="dc-meta">
+            <span>${veljavnost}</span>
+            <span>Uporab: ${uporabe}</span>
+          </div>
+          <div class="dc-actions">
+            <label class="checkbox-item"><input type="checkbox" ${c.active ? 'checked' : ''} onchange="window.__toggleDiscountCode('${c.id}', this.checked)"> aktivna</label>
+            <button class="link-btn danger" type="button" onclick="window.__deleteDiscountCode('${c.id}')">Izbriši</button>
+          </div>
+        </div>`;
+    }).join('') || '<p class="section-sub">Trenutno nimate nobene kode za popust.</p>';
+
+    wrap.innerHTML = `
+      <div class="settings-block">
+        <h4>Točke zvestobe</h4>
+        <label class="chip-check"><input type="checkbox" ${r.loyalty_enabled ? 'checked' : ''} onchange="window.__updateLoyaltySetting('loyalty_enabled', this.checked)"> Ponujam točke zvestobe</label>
+        ${r.loyalty_enabled ? `
+          <div class="settings-row"><span class="lbl">Točk na 1 € nakupa</span><input class="num-input" type="number" step="0.1" min="0" value="${r.loyalty_earn_rate || 0}" onchange="window.__updateLoyaltySetting('loyalty_earn_rate', this.value)"></div>
+          <div class="settings-row"><span class="lbl">Vrednost 1 točke</span><div><input class="num-input" type="number" step="0.01" min="0" value="${r.loyalty_redeem_value || 0}" onchange="window.__updateLoyaltySetting('loyalty_redeem_value', this.value)"> &euro;</div></div>
+          <p class="section-sub">Stranka točke zasluži, ko naročilo prevzame/prejme, in jih lahko unovči pri naslednjem naročilu pri vas.</p>
+        ` : `<p class="section-sub">Stranke ne zbirajo točk pri vas.</p>`}
+      </div>
+      <div class="settings-block">
+        <h4>Kode za popust</h4>
+        <div id="discountCodesList">${codesRows}</div>
+        <div class="add-discount-row">
+          <input class="text-input" id="newDcCode" placeholder="Koda (npr. POLETJE10)" style="text-transform:uppercase;">
+          <input class="num-input" id="newDcPercent" type="number" min="1" max="100" placeholder="% popusta">
+          <input class="num-input" id="newDcFrom" type="date" title="Velja od (neobvezno)">
+          <input class="num-input" id="newDcUntil" type="date" title="Velja do (neobvezno)">
+          <input class="num-input" id="newDcMaxUses" type="number" min="1" placeholder="Št. uporab skupaj (neobv.)">
+          <input class="num-input" id="newDcMaxPerCustomer" type="number" min="1" placeholder="Max/stranko (neobv.)">
+          <button class="secondary-btn" type="button" onclick="window.__addDiscountCode()">Dodaj kodo</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function updateLoyaltySetting(field, value) {
+    authedFetch('/owner/restaurant', { method: 'PATCH', body: { [field]: value } }, ownerToken())
+      .then((data) => { ownerRestaurant = data; renderOwnerLoyalty(); showToast('Shranjeno.'); })
+      .catch((e) => showToast(e.message));
+  }
+  window.__updateLoyaltySetting = updateLoyaltySetting;
+
+  async function addDiscountCode() {
+    const code = document.getElementById('newDcCode').value.trim();
+    const percent = document.getElementById('newDcPercent').value;
+    const valid_from = document.getElementById('newDcFrom').value || null;
+    const valid_until = document.getElementById('newDcUntil').value || null;
+    const max_uses = document.getElementById('newDcMaxUses').value || null;
+    const max_uses_per_customer = document.getElementById('newDcMaxPerCustomer').value || null;
+    if (!code || !percent) { showToast('Vpišite kodo in odstotek popusta.'); return; }
+    try {
+      await authedFetch('/owner/discount-codes', { method: 'POST', body: { code, percent, valid_from, valid_until, max_uses, max_uses_per_customer } }, ownerToken());
+      ownerDiscountCodes = await authedFetch('/owner/discount-codes', {}, ownerToken());
+      renderOwnerLoyalty();
+      showToast('Koda dodana.');
+    } catch (e) { showToast(e.message); }
+  }
+  window.__addDiscountCode = addDiscountCode;
+
+  async function toggleDiscountCode(id, active) {
+    try {
+      await authedFetch('/owner/discount-codes/' + id, { method: 'PATCH', body: { active } }, ownerToken());
+      ownerDiscountCodes = await authedFetch('/owner/discount-codes', {}, ownerToken());
+      renderOwnerLoyalty();
+    } catch (e) { showToast(e.message); }
+  }
+  window.__toggleDiscountCode = toggleDiscountCode;
+
+  function deleteDiscountCode(id) {
+    askConfirm('Izbriši kodo', 'Ste prepričani, da želite izbrisati to kodo za popust?', async () => {
+      try {
+        await authedFetch('/owner/discount-codes/' + id, { method: 'DELETE' }, ownerToken());
+        ownerDiscountCodes = await authedFetch('/owner/discount-codes', {}, ownerToken());
+        renderOwnerLoyalty();
+      } catch (e) { showToast(e.message); }
+    });
+  }
+  window.__deleteDiscountCode = deleteDiscountCode;
 
   function shareLinkFor(restaurantId) {
     return `${window.location.origin}${window.location.pathname}?r=${restaurantId}`;
