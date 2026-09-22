@@ -186,6 +186,10 @@
     return tags.join('');
   }
 
+  function normKraj(s) {
+    return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  }
+
   function syncMyKrajFilterVisibility() {
     const myKraj = customerToken() ? (customerMeta().kraj || '').trim() : '';
     const wrap = document.getElementById('marketOnlyMyKrajWrap');
@@ -197,14 +201,14 @@
     const q = (document.getElementById('marketSearch').value || '').toLowerCase().trim();
     const kuhinja = document.getElementById('marketKuhinja').value;
     const onlyOpen = document.getElementById('marketOnlyOpen').checked;
-    const myKraj = customerToken() ? (customerMeta().kraj || '').trim().toLowerCase() : '';
+    const myKraj = customerToken() ? normKraj(customerMeta().kraj) : '';
     const onlyMyKraj = myKraj && document.getElementById('marketOnlyMyKraj').checked;
 
     const list = restaurants.filter((r) => {
       if (q && !((r.name || '').toLowerCase().includes(q) || (r.kraj || '').toLowerCase().includes(q))) return false;
       if (kuhinja && r.kuhinja !== kuhinja) return false;
       if (onlyOpen && !r.odprto_zdaj) return false;
-      if (onlyMyKraj && !(r.kraj || '').toLowerCase().includes(myKraj)) return false;
+      if (onlyMyKraj && !normKraj(r.kraj).includes(myKraj)) return false;
       return true;
     });
 
