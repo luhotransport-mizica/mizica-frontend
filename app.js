@@ -1292,7 +1292,7 @@
       <table class="print-table"><tbody>${rows.join('')}</tbody></table>
       <p style="margin-top:14px; font-size:.8rem; color:#0b2f6b; font-weight:600;">Status: ${x.placano ? 'Plačano' : 'Neplačano'}</p>
     `;
-    printHtml(`Obračun · ${r.name}`, monthLabel(adminMonth), body);
+    printHtml('Obračun · Mizica', `${r.name} · ${monthLabel(adminMonth)}`, body);
   }
   window.__printBilling = printBilling;
 
