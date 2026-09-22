@@ -1114,7 +1114,10 @@
         .p-line{display:flex; justify-content:space-between; gap:14px; font-size:1.1rem; padding:7px 0; border-bottom:1px dashed #ccc;}
         .p-total{display:flex; justify-content:space-between; font-weight:700; font-size:1.4rem; margin-top:16px; padding-top:12px; border-top:2px solid #111;}
         .p-meta{font-size:1.05rem; margin:4px 0;}
+        .p-print-btn{display:block; margin:0 0 20px; padding:12px 20px; font-size:1.05rem; font-weight:700; background:#2f6b3f; color:#fff; border:none; border-radius:8px; cursor:pointer;}
+        @media print { .p-print-btn{display:none;} }
       </style></head><body>
+      <button class="p-print-btn" type="button" onclick="window.print()">Natisni / Shrani kot PDF</button>
       <h2>${esc(ownerRestaurant ? ownerRestaurant.name : 'Naročilo')}</h2>
       <p class="p-sub">${new Date(o.placed_at).toLocaleString('sl-SI', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
       <p class="p-meta"><strong>${esc(o.customer_name)}</strong> &middot; Tel: ${esc(o.phone)}</p>
@@ -1124,7 +1127,6 @@
       <div style="margin-top:18px;">${items}</div>
       ${o.delivery_fee ? `<div class="p-line"><span>Strošek dostave</span><span>${eur(o.delivery_fee)}</span></div>` : ''}
       <div class="p-total"><span>Skupaj</span><span>${eur(total)}</span></div>
-      <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 150); };<\/script>
       </body></html>`;
     const w = window.open('', '_blank', 'width=560,height=720');
     if (!w) { showToast('Brskalnik je blokiral pojavno okno — dovolite pojavna okna za natis.'); return; }
