@@ -593,7 +593,7 @@
       <div class="settings-block">
         <div class="settings-row"><span class="lbl">Ime in priimek</span><input class="text-input" style="max-width:220px;" value="${esc(meta.ime||'')}" onchange="window.__updateAccountMeta('ime',this.value)"></div>
         <div class="settings-row"><span class="lbl">Telefon</span><input class="text-input" style="max-width:220px;" value="${esc(meta.telefon||'')}" onchange="window.__updateAccountMeta('telefon',this.value)"></div>
-        <div class="settings-row"><span class="lbl">Kraj</span><input class="text-input" style="max-width:220px;" value="${esc(meta.kraj||'')}" placeholder="npr. Brežice" onchange="window.__updateAccountMeta('kraj',this.value)"></div>
+        <div class="settings-row"><span class="lbl">Kraj</span><input class="text-input" style="max-width:220px;" value="${esc(meta.kraj||'')}" placeholder="npr. Brežice" list="siPlacesList" onchange="window.__updateAccountMeta('kraj',this.value)"></div>
         <p class="section-sub" id="accountKrajStatus" style="margin-top:4px;">${meta.kraj ? (meta.lat != null ? '' : 'Kraja ni bilo mogoče najti — filter "v bližini" ne bo deloval.') : ''}</p>
       </div>
     `;
@@ -1577,6 +1577,14 @@
       renderMarket();
     }
   })();
+
+  // Predlogi krajev (za "Kraj" pri stranki in gostilni) — naložimo enkrat ob zagonu,
+  // da brskalnik lahko med tipkanjem sam ponuja ujemajoče se kraje (nativni <datalist>).
+  fetch('./places.json').then((r) => r.json()).then((names) => {
+    const list = document.getElementById('siPlacesList');
+    if (!list) return;
+    list.innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
+  }).catch(() => {});
 
   loadMarket();
   if (shareRestaurantId) {

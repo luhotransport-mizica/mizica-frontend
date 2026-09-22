@@ -75,7 +75,7 @@
             <label class="field-label" style="margin-top:10px;">Telefon</label>
             <input class="text-input" type="tel" id="accountTelefon" autocomplete="tel">
             <label class="field-label" style="margin-top:10px;">Kraj</label>
-            <input class="text-input" type="text" id="accountKraj" placeholder="npr. Brežice" autocomplete="address-level2">
+            <input class="text-input" type="text" id="accountKraj" placeholder="npr. Brežice" autocomplete="address-level2" list="siPlacesList">
           </div>
           <div class="field-error" id="accountLoginError"></div>
           <button class="primary-btn" type="submit" id="accountSubmitBtn">Prijava</button>
@@ -215,7 +215,7 @@
             <form id="addRestaurantForm">
               <div class="form-grid">
                 <div class="form-field"><label>Ime gostilne</label><input class="text-input dark-input" id="newName" required></div>
-                <div class="form-field"><label>Kraj</label><input class="text-input dark-input" id="newKraj" required></div>
+                <div class="form-field"><label>Kraj</label><input class="text-input dark-input" id="newKraj" required list="siPlacesList"></div>
                 <div class="form-field"><label>Kuhinja</label><input class="text-input dark-input" id="newKuhinja" required></div>
                 <div class="form-field"><label>E-pošta lastnika</label><input class="text-input dark-input" type="email" id="newEmail" required></div>
                 <div class="form-field"><label>Geslo (neobvezno)</label><input class="text-input dark-input" type="text" id="newPassword" placeholder="Pustite prazno za povabilo po e-pošti"></div>
@@ -254,6 +254,9 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Predlogi krajev (samodejno izpolnjeno iz JS ob nalaganju strani) -->
+<datalist id="siPlacesList"></datalist>
 
 <div id="printArea"></div>
 
