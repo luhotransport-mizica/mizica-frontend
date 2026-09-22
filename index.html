@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mizica</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="brand-mark">M</span>Mizica</div>
+    <div class="viewnav">
+      <button data-view="market" class="active">Ponudba</button>
+      <button data-view="owner">Za gostilne<span class="nav-badge" id="ownerBadge"></span></button>
+      <button data-view="admin">Skrbnik</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+<main>
+
+  <!-- ================= MARKET ================= -->
+  <section class="view active" id="view-market">
+    <div class="market-head">
+      <span class="eyebrow">Posavje &middot; brez provizije za plačila</span>
+      <h1>Naročite pri lokalnih gostilnah</h1>
+      <p class="lede">Plačilo vedno neposredno gostilni — z gotovino ali kartico ob prevzemu/dostavi. Mizica ne obdeluje plačil.</p>
+    </div>
+
+    <div class="market-filters">
+      <input class="text-input" type="text" id="marketSearch" placeholder="Išči gostilno ali kraj...">
+      <select class="select-input" id="marketKuhinja"><option value="">Vsa kuhinja</option></select>
+      <label class="checkbox-item"><input type="checkbox" id="marketOnlyOpen"> Samo odprto zdaj</label>
+    </div>
+
+    <div id="marketGrid" class="restaurant-grid"></div>
+    <div id="marketEmpty" class="empty-note" style="display:none;">Ni gostiln, ki bi ustrezale iskanju.</div>
+    <div id="marketLoading" class="loading-note">Nalagam gostilne...</div>
+  </section>
+
+  <!-- ================= RESTAVRACIJA / MENI ================= -->
+  <section class="view" id="view-restaurant">
+    <button class="back-link" id="backToMarket">&larr; Nazaj na ponudbo</button>
+    <div id="restaurantContent"></div>
+  </section>
+
+  <!-- ================= POTRDITEV NAROČILA ================= -->
+  <section class="view" id="view-confirm">
+    <div class="confirm-wrap" id="confirmContent"></div>
+  </section>
+
+  <!-- ================= OWNER (GOSTILNA) ================= -->
+  <section class="view" id="view-owner">
+    <div id="ownerLoginWrap" class="login-wrap">
+      <div class="login-box">
+        <h2>Prijava za gostilne</h2>
+        <p class="section-sub">Prijavite se z e-pošto in geslom, ki ste ga prejeli po povabilu.</p>
+        <form id="ownerLoginForm">
+          <div class="field-group">
+            <label class="field-label">E-pošta</label>
+            <input class="text-input" type="email" id="ownerEmail" required autocomplete="username">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Geslo</label>
+            <input class="text-input" type="password" id="ownerPassword" required autocomplete="current-password">
+          </div>
+          <div class="field-error" id="ownerLoginError"></div>
+          <button class="primary-btn" type="submit">Prijava</button>
+        </form>
+        <button class="link-btn" id="ownerForgotBtn" type="button">Pozabljeno geslo?</button>
+      </div>
+    </div>
+
+    <div id="ownerAppWrap" style="display:none;">
+      <div class="logged-in-bar">
+        <div><span class="who" id="ownerWhoName">—</span><br><span class="who-sub" id="ownerWhoSub"></span></div>
+        <button class="secondary-btn" id="ownerLogoutBtn">Odjava</button>
+      </div>
+      <div class="owner-toolbar">
+        <div><h2 class="section-title">Naročila</h2><p class="section-sub">Sledite naročilom v realnem času.</p></div>
+        <button class="secondary-btn" id="ownerRefreshBtn">Osveži</button>
+      </div>
+      <div class="board" id="ownerBoard"></div>
+
+      <div class="panel">
+        <h2 class="section-title">Upravljanje menija</h2>
+        <p class="section-sub">Dodajte kategorije in jedi. Foto ni obvezna — vnesete lahko povezavo (URL) do slike.</p>
+        <div id="ownerMenu"></div>
+        <div class="add-cat-row">
+          <input class="text-input" id="newCatName" placeholder="Ime nove kategorije">
+          <button class="secondary-btn" id="addCatBtn">Dodaj kategorijo</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="section-title">Nastavitve</h2>
+        <div class="settings-grid" id="ownerSettings"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ADMIN ================= -->
+  <section class="view" id="view-admin">
+    <div id="adminLoginWrap" class="login-wrap">
+      <div class="login-box">
+        <h2>Prijava &middot; Skrbnik</h2>
+        <p class="section-sub">Dostop samo za skrbnike platforme Mizica.</p>
+        <form id="adminLoginForm">
+          <div class="field-group">
+            <label class="field-label">E-pošta</label>
+            <input class="text-input" type="email" id="adminEmail" required autocomplete="username">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Geslo</label>
+            <input class="text-input" type="password" id="adminPassword" required autocomplete="current-password">
+          </div>
+          <div class="field-error" id="adminLoginError"></div>
+          <button class="primary-btn" type="submit">Prijava</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="adminAppWrap" style="display:none;">
+      <div class="admin-shell">
+        <div class="logged-in-bar" style="background:var(--admin-panel); border-color:var(--admin-line);">
+          <div><span class="who" style="color:var(--admin-ink);" id="adminWhoName">—</span></div>
+          <button class="secondary-btn on-dark-btn" id="adminLogoutBtn">Odjava</button>
+        </div>
+        <h1>Nadzorna plošča</h1>
+        <div class="admin-subnav">
+          <button data-atab="pregled" class="active">Pregled</button>
+          <button data-atab="gostilne">Gostilne</button>
+        </div>
+
+        <div class="atab active" id="atab-pregled">
+          <div class="month-select-row">
+            <div><h2 class="section-title">Mesečna analitika</h2><p class="section-sub">Promet, naročila in vaš zaslužek po gostilnah.</p></div>
+            <select class="select-input dark-input" id="monthSelect"></select>
+          </div>
+          <div class="stat-row" id="statRow"></div>
+          <div class="admin-panel-box">
+            <table class="admin-table">
+              <thead><tr><th>Gostilna</th><th>Promet</th><th>Naročila</th><th>Vaš zaslužek</th><th>Status</th><th></th></tr></thead>
+              <tbody id="monthlyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="atab" id="atab-gostilne">
+          <div class="admin-toolbar-row">
+            <input class="text-input dark-input admin-search" id="adminSearchInput" placeholder="Išči gostilno ali kraj...">
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>Ime</th><th>Kraj</th><th>E-pošta</th><th>Status</th><th>Obračun</th><th></th></tr></thead>
+              <tbody id="adminTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="add-form">
+            <h3>Dodaj novo gostilno</h3>
+            <p class="section-sub">Lastnik bo po e-pošti prejel povabilo za nastavitev gesla.</p>
+            <form id="addRestaurantForm">
+              <div class="form-grid">
+                <div class="form-field"><label>Ime gostilne</label><input class="text-input dark-input" id="newName" required></div>
+                <div class="form-field"><label>Kraj</label><input class="text-input dark-input" id="newKraj" required></div>
+                <div class="form-field"><label>Kuhinja</label><input class="text-input dark-input" id="newKuhinja" required></div>
+                <div class="form-field"><label>E-pošta lastnika</label><input class="text-input dark-input" type="email" id="newEmail" required></div>
+                <div class="form-field"><label>Odpre</label><input class="text-input dark-input" type="time" id="newOd" value="09:00"></div>
+                <div class="form-field"><label>Zapre</label><input class="text-input dark-input" type="time" id="newDo" value="20:00"></div>
+                <div class="form-field"><label>Naročil na termin (max.)</label><input class="text-input dark-input" type="number" id="newMaxSlot" value="6"></div>
+              </div>
+              <hr class="form-sep">
+              <span class="fieldset-title">Obračunski model</span>
+              <div class="radio-row">
+                <label class="radio-item"><input type="radio" name="billingModel" value="najemnina" checked> Naročnina</label>
+                <label class="radio-item"><input type="radio" name="billingModel" value="provizija"> Provizija</label>
+                <label class="radio-item"><input type="radio" name="billingModel" value="oboje"> Oboje</label>
+              </div>
+              <div class="form-grid">
+                <div class="form-field"><label>Naročnina (€/mesec)</label><input class="text-input dark-input" type="number" id="newNajemnina" value="30"></div>
+                <div class="form-field"><label>Provizija (%)</label><input class="text-input dark-input" type="number" id="newProvizija" value="0"></div>
+              </div>
+              <div class="field-error" id="addRestaurantError"></div>
+              <div class="inline-form-actions">
+                <button class="secondary-btn on-dark-btn primary" type="submit">Dodaj gostilno in pošlji povabilo</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<div class="cart-fab" id="cartFab">
+  <span>Košarica</span>
+  <span class="cart-fab-badge" id="cartFabBadge">0</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
