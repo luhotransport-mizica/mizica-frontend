@@ -72,6 +72,16 @@
     return apiFetch(path, opts);
   }
 
+  // ---------------- nalaganje slik (Supabase Storage) ----------------
+  async function uploadToStorage(file, folderHint) {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+    const path = `${folderHint}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await sb.storage.from('mizica-media').upload(path, file, { upsert: true, cacheControl: '3600' });
+    if (error) throw error;
+    const { data } = sb.storage.from('mizica-media').getPublicUrl(path);
+    return data.publicUrl;
+  }
+
   // ---------------- nastavitev gesla ob povabilu / obnovitvi gesla ----------------
   // Ko uporabnik klikne povezavo v e-pošti (povabilo ali "pozabljeno geslo"), Supabase doda
   // #access_token=...&type=invite (ali type=recovery) na URL. To zaznamo in mu ponudimo obrazec za novo geslo.
@@ -443,7 +453,7 @@
   let confirmTimer = null;
   function renderConfirm(order, vat, restaurantName) {
     clearInterval(confirmTimer);
-    const cancelWindow = order.cancel_window_ms || 120000;
+    const cancelWindow = order.cancel_window_ms || 20000;
     const placedAt = new Date(order.placed_at || Date.now()).getTime();
 
     function draw() {
@@ -453,6 +463,8 @@
       const mm = Math.floor(remaining / 60000);
       const ss = Math.floor((remaining % 60000) / 1000);
 
+      const grandTotal = vat ? vat.grandTotal : (order.items || []).reduce((s, i) => s + i.price * i.qty, 0) + Number(order.delivery_fee || 0);
+
       document.getElementById('confirmContent').innerHTML = `
         <div class="confirm-badge">&check;</div>
         <h1>Naročilo oddano</h1>
@@ -460,7 +472,11 @@
         <div class="confirm-box">
           ${(order.items || []).map((i) => `<div class="confirm-row"><span>${i.qty}&times; ${esc(i.name)}</span><span>${eur(i.price * i.qty)}</span></div>`).join('')}
           ${order.delivery_fee ? `<div class="confirm-row"><span>Strošek dostave</span><span>${eur(order.delivery_fee)}</span></div>` : ''}
-          <div class="confirm-row total"><span>Skupaj za plačilo</span><span>${eur(vat ? vat.total : 0)}</span></div>
+          <div class="confirm-row total"><span>Skupaj za plačilo</span><span>${eur(grandTotal)}</span></div>
+          ${vat && vat.rows && vat.rows.length ? `
+          <p class="cart-vat-note" style="text-align:left; margin-top:8px;">
+            ${vat.rows.map((r) => `Od tega DDV ${r.rate}%: ${eur(r.ddv)} (osnova ${eur(r.osnova)})`).join('<br>')}
+          </p>` : ''}
           <hr class="confirm-hr">
           <div class="confirm-row"><span>Način</span><span>${order.type === 'dostava' ? 'Dostava' : 'Prevzem'}</span></div>
           <div class="confirm-row"><span>Termin</span><span>${esc(order.time_slot)}</span></div>
@@ -473,7 +489,7 @@
         <button class="link-btn" type="button" id="confirmBackBtn">Nazaj na ponudbo</button>
       `;
       const cancelBtn = document.getElementById('cancelOrderBtn');
-      if (cancelBtn) cancelBtn.addEventListener('click', () => cancelOrderFlow(order, restaurantName));
+      if (cancelBtn) cancelBtn.addEventListener('click', () => cancelOrderFlow(order, vat, restaurantName));
       document.getElementById('confirmBackBtn').addEventListener('click', () => { clearInterval(confirmTimer); goToView('market'); });
 
       if (remaining <= 0) clearInterval(confirmTimer);
@@ -482,11 +498,11 @@
     confirmTimer = setInterval(draw, 1000);
   }
 
-  async function cancelOrderFlow(order, restaurantName) {
+  async function cancelOrderFlow(order, vat, restaurantName) {
     try {
       const updated = await apiFetch('/orders/' + order.id + '/cancel', { method: 'POST' });
       showToast('Naročilo preklicano.');
-      renderConfirm(Object.assign({}, order, updated), null, restaurantName);
+      renderConfirm(Object.assign({}, order, updated), vat, restaurantName);
     } catch (e) {
       showToast(e.message);
     }
@@ -577,6 +593,7 @@
         }
       }
       ownerOrders = await authedFetch('/owner/orders', {}, token);
+      ownerKnownOrderIds = new Set(ownerOrders.map((o) => o.id));
       renderOwnerBoard();
       renderOwnerMenu();
       renderOwnerSettings();
@@ -584,6 +601,49 @@
       showToast('Napaka pri nalaganju: ' + e.message);
     }
   }
+
+  // ---------------- zvočno obvestilo in samodejno osveževanje naročil ----------------
+  let audioCtx = null;
+  function playAlertBeep() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+      [0, 0.4, 0.8, 1.2].forEach((offset) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = 900;
+        gain.gain.setValueAtTime(0.0001, now + offset);
+        gain.gain.exponentialRampToValueAtTime(1, now + offset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.37);
+      });
+    } catch (e) { /* zvok ni na voljo v tem brskalniku */ }
+  }
+
+  let ownerKnownOrderIds = null;
+  async function pollOwnerOrders() {
+    const token = ownerToken();
+    if (!token) return;
+    try {
+      const orders = await authedFetch('/owner/orders', {}, token);
+      const newOnes = ownerKnownOrderIds ? orders.filter((o) => o.status === 'novo' && !ownerKnownOrderIds.has(o.id)) : [];
+      ownerOrders = orders;
+      ownerKnownOrderIds = new Set(orders.map((o) => o.id));
+      renderOwnerBoard();
+      if (newOnes.length) {
+        playAlertBeep();
+        showToast(`🔔 Novo naročilo: ${newOnes.map((o) => o.customer_name).join(', ')}`);
+      }
+    } catch (e) {
+      // tiho — napake pri osveževanju v ozadju ne prikazujemo, da ne motimo dela
+    }
+  }
+  setInterval(() => { if (ownerSession) pollOwnerOrders(); }, 15000);
 
   const OWNER_STATUS_COLS = [
     ['novo', 'Novo'],
@@ -727,7 +787,16 @@
           <input class="text-input" id="if-allergens-${opts.key}" placeholder="Alergeni (neobvezno)" value="${esc(it.allergens || '')}">
         </div>
         <div class="field-group">
-          <input class="text-input" id="if-photo-${opts.key}" placeholder="Povezava do fotografije (URL, neobvezno)" value="${esc(it.photo_url || '')}">
+          <label class="field-label">Fotografija jedi (neobvezno)</label>
+          <div class="upload-row">
+            ${it.photo_url ? `<img class="upload-preview" id="if-photo-preview-${opts.key}" src="${esc(it.photo_url)}" alt="">` : `<div class="thumb-empty" id="if-photo-preview-${opts.key}"></div>`}
+            <label class="secondary-btn upload-btn-label">
+              Naloži fotografijo
+              <input type="file" accept="image/*" style="display:none;" onchange="window.__uploadPhotoFor('${opts.key}', this.files[0])">
+            </label>
+            <span class="section-sub" id="if-photo-status-${opts.key}"></span>
+          </div>
+          <input type="hidden" id="if-photo-${opts.key}" value="${esc(it.photo_url || '')}">
         </div>
         <label class="chip-check" style="margin-top:8px;"><input type="checkbox" id="if-daily-${opts.key}" ${it.daily ? 'checked' : ''}> Dnevna ponudba</label>
         <div class="field-error" id="if-error-${opts.key}"></div>
@@ -738,6 +807,29 @@
       </div>
     `;
   }
+
+  async function uploadPhotoFor(key, file) {
+    if (!file) return;
+    const statusEl = document.getElementById('if-photo-status-' + key);
+    if (statusEl) statusEl.textContent = 'Nalagam...';
+    try {
+      const url = await uploadToStorage(file, ownerRestaurant.id);
+      document.getElementById('if-photo-' + key).value = url;
+      const preview = document.getElementById('if-photo-preview-' + key);
+      if (preview) {
+        const img = document.createElement('img');
+        img.className = 'upload-preview';
+        img.id = 'if-photo-preview-' + key;
+        img.src = url;
+        preview.replaceWith(img);
+      }
+      if (statusEl) statusEl.textContent = 'Naloženo.';
+    } catch (e) {
+      if (statusEl) statusEl.textContent = '';
+      showToast('Napaka pri nalaganju slike: ' + e.message);
+    }
+  }
+  window.__uploadPhotoFor = uploadPhotoFor;
 
   function addItemForm(categoryId) {
     document.querySelectorAll('[id^="addItemForm-"]').forEach((el) => (el.innerHTML = ''));
@@ -858,11 +950,42 @@
       </div>
       <div class="settings-block">
         <h4>Logotip gostilne</h4>
-        <p class="section-sub" style="margin-bottom:8px;">Vnesite povezavo (URL) do slike vašega logotipa.</p>
-        <div class="field-group"><input class="text-input" value="${esc(r.logo_url||'')}" placeholder="https://..." onchange="window.__updateOwnerSetting('logo_url',this.value)"></div>
+        <p class="section-sub" style="margin-bottom:8px;">Prikaže se na kartici gostilne in pri naročanju.</p>
+        <div class="upload-row">
+          ${r.logo_url ? `<img class="upload-preview round" id="logoPreview" src="${esc(r.logo_url)}" alt="">` : `<div class="thumb-empty" id="logoPreview" style="border-radius:50%;"></div>`}
+          <label class="secondary-btn upload-btn-label">
+            Naloži logotip
+            <input type="file" accept="image/*" style="display:none;" onchange="window.__uploadLogo(this.files[0])">
+          </label>
+          <span class="section-sub" id="logoUploadStatus"></span>
+        </div>
       </div>
     `;
   }
+
+  async function uploadLogo(file) {
+    if (!file) return;
+    const statusEl = document.getElementById('logoUploadStatus');
+    if (statusEl) statusEl.textContent = 'Nalagam...';
+    try {
+      const url = await uploadToStorage(file, ownerRestaurant.id);
+      const updated = await authedFetch('/owner/restaurant', { method: 'PATCH', body: { logo_url: url } }, ownerToken());
+      ownerRestaurant = updated;
+      const preview = document.getElementById('logoPreview');
+      if (preview) {
+        const img = document.createElement('img');
+        img.className = 'upload-preview round';
+        img.id = 'logoPreview';
+        img.src = url;
+        preview.replaceWith(img);
+      }
+      if (statusEl) statusEl.textContent = 'Naloženo.';
+    } catch (e) {
+      if (statusEl) statusEl.textContent = '';
+      showToast('Napaka pri nalaganju logotipa: ' + e.message);
+    }
+  }
+  window.__uploadLogo = uploadLogo;
 
   function updateOwnerSetting(field, value) {
     authedFetch('/owner/restaurant', { method: 'PATCH', body: { [field]: value } }, ownerToken())
@@ -1111,7 +1234,10 @@
         <td>${x.narocila}</td>
         <td>${eur(x.earning)}</td>
         <td><span class="status-pill ${x.placano ? 'active' : 'warn'}">${x.placano ? 'Plačano' : 'Neplačano'}</span></td>
-        <td class="td-actions"><button class="secondary-btn on-dark-btn" type="button" onclick="window.__togglePaid('${x.restaurant_id}')">${x.placano ? 'Neplačano' : 'Plačano'}</button></td>
+        <td class="td-actions">
+          <button class="secondary-btn on-dark-btn" type="button" onclick="window.__togglePaid('${x.restaurant_id}')">${x.placano ? 'Neplačano' : 'Plačano'}</button>
+          <button class="secondary-btn on-dark-btn" type="button" onclick="window.__printBilling('${x.restaurant_id}')">Natisni obračun</button>
+        </td>
       </tr>
     `).join('');
   }
@@ -1122,6 +1248,53 @@
       .catch((e) => showToast(e.message));
   }
   window.__togglePaid = togglePaid;
+
+  // ---------------- tiskanje / PDF obračuna ----------------
+  const SERVICE_DDV = 22; // DDV na strošek platforme (naročnina/provizija), enako kot na strežniku (business.js)
+
+  function printHtml(title, subtitle, bodyHtml) {
+    document.getElementById('printArea').innerHTML = `
+      <div class="print-doc-title">${esc(title)}</div>
+      <div class="print-doc-sub">${esc(subtitle)}</div>
+      ${bodyHtml}
+      <p class="print-foot">Mizica — plačila potekajo vedno neposredno med stranko in gostilno; ta obračun se nanaša izključno na strošek uporabe platforme.</p>
+    `;
+    window.print();
+  }
+
+  function billingModelLabel(model) {
+    if (model === 'najemnina') return 'Naročnina';
+    if (model === 'provizija') return 'Provizija';
+    return 'Naročnina + provizija';
+  }
+
+  function printBilling(restaurantId) {
+    const x = (adminAnalytics?.results || []).find((r) => r.restaurant_id === restaurantId);
+    const r = adminRestaurants.find((rr) => rr.id === restaurantId);
+    if (!x || !r) { showToast('Podatki za obračun niso na voljo.'); return; }
+
+    const feeOsnova = x.earning;
+    const feeDdv = feeOsnova * SERVICE_DDV / 100;
+    const feeTotal = feeOsnova + feeDdv;
+
+    const rows = [];
+    rows.push(`<tr><td>Promet gostilne (z DDV, vključno z dostavo)</td><td>${eur(x.promet)}</td></tr>`);
+    rows.push(`<tr><td>Neto prodaja hrane/pijače (brez DDV, brez dostave)</td><td>${eur(x.osnova)}</td></tr>`);
+    rows.push(`<tr><td>Število naročil</td><td>${x.narocila}</td></tr>`);
+    rows.push(`<tr><td>Obračunski model</td><td>${billingModelLabel(r.billing_model)}</td></tr>`);
+    if (r.billing_model === 'najemnina' || r.billing_model === 'oboje') rows.push(`<tr><td>Naročnina</td><td>${eur(r.najemnina)}</td></tr>`);
+    if (r.billing_model === 'provizija' || r.billing_model === 'oboje') rows.push(`<tr><td>Provizija (${r.provizija}% od neto prodaje hrane/pijače)</td><td>${eur(x.osnova * r.provizija / 100)}</td></tr>`);
+    rows.push(`<tr><td>Osnova za vaš račun</td><td>${eur(feeOsnova)}</td></tr>`);
+    rows.push(`<tr><td>DDV ${SERVICE_DDV}%</td><td>${eur(feeDdv)}</td></tr>`);
+    rows.push(`<tr class="print-total-row"><td>Skupaj za plačilo</td><td>${eur(feeTotal)}</td></tr>`);
+
+    const body = `
+      <table class="print-table"><tbody>${rows.join('')}</tbody></table>
+      <p style="margin-top:14px; font-size:.8rem; color:#0b2f6b; font-weight:600;">Status: ${x.placano ? 'Plačano' : 'Neplačano'}</p>
+    `;
+    printHtml(`Obračun · ${r.name}`, monthLabel(adminMonth), body);
+  }
+  window.__printBilling = printBilling;
 
   document.getElementById('addRestaurantForm').addEventListener('submit', async (e) => {
     e.preventDefault();
