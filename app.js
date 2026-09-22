@@ -190,6 +190,16 @@
     return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   }
 
+  const NEARBY_RADIUS_KM = 20;
+  function distanceKm(a, b) {
+    if (!a || !b || a.lat == null || a.lng == null || b.lat == null || b.lng == null) return null;
+    const R = 6371;
+    const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+    const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+    const s1 = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s1));
+  }
+
   function syncMyKrajFilterVisibility() {
     const myKraj = customerToken() ? (customerMeta().kraj || '').trim() : '';
     const wrap = document.getElementById('marketOnlyMyKrajWrap');
@@ -201,14 +211,22 @@
     const q = (document.getElementById('marketSearch').value || '').toLowerCase().trim();
     const kuhinja = document.getElementById('marketKuhinja').value;
     const onlyOpen = document.getElementById('marketOnlyOpen').checked;
-    const myKraj = customerToken() ? normKraj(customerMeta().kraj) : '';
+    const meta = customerToken() ? customerMeta() : {};
+    const myKraj = customerToken() ? normKraj(meta.kraj) : '';
+    const myCoords = meta.lat != null && meta.lng != null ? { lat: meta.lat, lng: meta.lng } : null;
     const onlyMyKraj = myKraj && document.getElementById('marketOnlyMyKraj').checked;
 
     const list = restaurants.filter((r) => {
       if (q && !((r.name || '').toLowerCase().includes(q) || (r.kraj || '').toLowerCase().includes(q))) return false;
       if (kuhinja && r.kuhinja !== kuhinja) return false;
       if (onlyOpen && !r.odprto_zdaj) return false;
-      if (onlyMyKraj && !normKraj(r.kraj).includes(myKraj)) return false;
+      if (onlyMyKraj) {
+        const d = myCoords ? distanceKm(myCoords, { lat: r.lat, lng: r.lng }) : null;
+        // Če imamo koordinate za obe strani, filtriramo po razdalji (bolj natančno — zajame tudi
+        // sosednje vasi znotraj iste občine). Če geolociranje ni uspelo, se vrnemo na besedilo.
+        if (d != null) { if (d > NEARBY_RADIUS_KM) return false; }
+        else if (!normKraj(r.kraj).includes(myKraj)) return false;
+      }
       return true;
     });
 
@@ -576,18 +594,30 @@
         <div class="settings-row"><span class="lbl">Ime in priimek</span><input class="text-input" style="max-width:220px;" value="${esc(meta.ime||'')}" onchange="window.__updateAccountMeta('ime',this.value)"></div>
         <div class="settings-row"><span class="lbl">Telefon</span><input class="text-input" style="max-width:220px;" value="${esc(meta.telefon||'')}" onchange="window.__updateAccountMeta('telefon',this.value)"></div>
         <div class="settings-row"><span class="lbl">Kraj</span><input class="text-input" style="max-width:220px;" value="${esc(meta.kraj||'')}" placeholder="npr. Brežice" onchange="window.__updateAccountMeta('kraj',this.value)"></div>
+        <p class="section-sub" id="accountKrajStatus" style="margin-top:4px;">${meta.kraj ? (meta.lat != null ? '' : 'Kraja ni bilo mogoče najti — filter "v bližini" ne bo deloval.') : ''}</p>
       </div>
     `;
   }
 
   async function updateAccountMeta(field, value) {
-    const meta = Object.assign({}, customerMeta(), { [field]: value });
-    const { data, error } = await sb.auth.updateUser({ data: meta });
-    if (error) { showToast(error.message); return; }
-    customerSession.user = data.user;
-    showToast('Shranjeno.');
-    syncMyKrajFilterVisibility();
-    renderMarket();
+    try {
+      if (field === 'kraj') {
+        const statusEl = document.getElementById('accountKrajStatus');
+        if (statusEl) statusEl.textContent = 'Iščem kraj...';
+        const updatedMeta = await authedFetch('/customer/profile', { method: 'PATCH', body: { kraj: value } }, customerToken());
+        customerSession.user.user_metadata = updatedMeta;
+        if (statusEl) statusEl.textContent = updatedMeta.lat != null ? 'Kraj najden.' : 'Kraja ni bilo mogoče najti — filter "v bližini" ne bo deloval.';
+      } else {
+        const { data, error } = await sb.auth.updateUser({ data: Object.assign({}, customerMeta(), { [field]: value }) });
+        if (error) throw error;
+        customerSession.user = data.user;
+      }
+      showToast('Shranjeno.');
+      syncMyKrajFilterVisibility();
+      renderMarket();
+    } catch (e) {
+      showToast(e.message);
+    }
   }
   window.__updateAccountMeta = updateAccountMeta;
 
@@ -646,6 +676,12 @@
         const { data, error } = await sb.auth.signUp({ email, password, options: { data: { ime, telefon, kraj } } });
         if (error) throw error;
         customerSession = data.session;
+        if (customerSession && kraj) {
+          try {
+            const updatedMeta = await authedFetch('/customer/profile', { method: 'PATCH', body: { kraj } }, customerToken());
+            customerSession.user.user_metadata = updatedMeta;
+          } catch (e) { /* tiho — geolociranje ni obvezno za delovanje računa */ }
+        }
       } else {
         const { data, error } = await sb.auth.signInWithPassword({ email, password });
         if (error) throw error;
