@@ -208,6 +208,20 @@
     if (!myKraj) document.getElementById('marketOnlyMyKraj').checked = false;
   }
 
+  // ---------------- ocene (zvezdice) ----------------
+  function starsHtml(avg) {
+    const rounded = Math.round((avg || 0) * 2) / 2; // na pol zvezdice
+    let out = '';
+    for (let i = 1; i <= 5; i++) {
+      out += i <= rounded ? '★' : (i - 0.5 === rounded ? '⯨' : '☆');
+    }
+    return out;
+  }
+  function ratingLabel(r) {
+    if (!r.review_count) return '';
+    return `<span class="r-rating"><span class="r-rating-stars">${starsHtml(r.avg_rating)}</span> ${r.avg_rating} <span class="r-rating-count">(${r.review_count})</span></span>`;
+  }
+
   function renderMarket() {
     const q = (document.getElementById('marketSearch').value || '').toLowerCase().trim();
     const kuhinja = document.getElementById('marketKuhinja').value;
@@ -242,6 +256,7 @@
           <div class="r-card-body">
             <div class="r-card-name">${esc(r.name)}</div>
             <div class="r-card-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''}</div>
+            ${ratingLabel(r) ? `<div class="r-card-rating">${ratingLabel(r)}</div>` : ''}
             <div class="r-card-tags">${tagsForRestaurant(r)}</div>
             <div class="r-card-foot"><span>${r.odpira_od ? r.odpira_od.slice(0, 5) : ''}&ndash;${r.odpira_do ? r.odpira_do.slice(0, 5) : ''}</span></div>
           </div>
@@ -329,6 +344,7 @@
             <div>
               <h1>${esc(r.name)}</h1>
               <p class="r-card-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''} &middot; ${r.odpira_od ? r.odpira_od.slice(0,5) : ''}&ndash;${r.odpira_do ? r.odpira_do.slice(0,5) : ''}</p>
+              ${ratingLabel(r) ? `<div class="r-card-rating">${ratingLabel(r)}</div>` : ''}
               ${r.address ? `<p class="rd-address">${esc(r.address)}</p><a class="map-link-btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}">Odpri na zemljevidu</a>` : ''}
             </div>
           </div>
@@ -336,11 +352,26 @@
       </div>
       ${!r.odprto_zdaj ? '<div class="closed-banner">Gostilna trenutno ne sprejema naročil (zaprto ali izven delovnega časa).</div>' : ''}
       <div class="rd-body">
-        <div>${menuHtml}</div>
+        <div>${menuHtml}${renderReviewsSection(r)}</div>
         <div class="cart-panel" id="cartPanel"></div>
       </div>
     `;
     renderCartPanel();
+  }
+
+  function renderReviewsSection(r) {
+    const reviews = r.reviews || [];
+    return `
+      <div class="reviews-section">
+        <h3>Ocene ${r.review_count ? `<span class="r-rating"><span class="r-rating-stars">${starsHtml(r.avg_rating)}</span> ${r.avg_rating} <span class="r-rating-count">(${r.review_count})</span></span>` : ''}</h3>
+        ${reviews.length ? reviews.map((rv) => `
+          <div class="review-row">
+            <div class="review-row-top"><span class="review-stars">${starsHtml(rv.rating)}</span><span class="review-name">${esc(rv.customer_name || 'Stranka')}</span><span class="review-date">${new Date(rv.created_at).toLocaleDateString('sl-SI')}</span></div>
+            ${rv.comment ? `<p class="review-comment">${esc(rv.comment)}</p>` : ''}
+          </div>
+        `).join('') : '<p class="section-sub">Še ni ocen.</p>'}
+      </div>
+    `;
   }
 
   function itemPriceLabel(it) {
@@ -785,6 +816,13 @@
       const rest = o.restaurants || {};
       const total = o.vat ? o.vat.grandTotal : 0;
       const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' (' + esc(i.variant_name) + ')' : ''}${(i.addons && i.addons.length) ? ' +' + i.addons.map((a) => esc(a.name)).join(', +') : ''}`).join(', ');
+      const existingReview = Array.isArray(o.reviews) ? o.reviews[0] : o.reviews;
+      let reviewHtml = '';
+      if (o.status === 'prevzeto') {
+        reviewHtml = existingReview
+          ? `<div class="order-review-done"><span class="review-stars">${starsHtml(existingReview.rating)}</span> Ocenjeno</div>`
+          : `<button class="secondary-btn" type="button" style="margin-top:8px;" onclick="window.__openReviewModal('${o.id}')">Ocenite naročilo</button>`;
+      }
       return `
         <div class="order-card">
           <div class="order-card-top">
@@ -797,10 +835,57 @@
           </div>
           <p class="order-items-line">${items}</p>
           <p class="order-total-line">${eur(total)}</p>
+          ${reviewHtml}
         </div>
       `;
     }).join('');
   }
+
+  // ---------------- ocenjevanje naročila ----------------
+  let reviewRatingChoice = 0;
+  function openReviewModal(orderId) {
+    reviewRatingChoice = 0;
+    openModal(`
+      <h3>Ocenite naročilo</h3>
+      <div class="review-star-picker" id="reviewStarPicker">
+        ${[1,2,3,4,5].map((n) => `<button type="button" class="review-star-btn" data-n="${n}" onclick="window.__setReviewStar(${n})">☆</button>`).join('')}
+      </div>
+      <div class="field-group">
+        <label class="field-label">Komentar (neobvezno)</label>
+        <textarea class="text-input" id="reviewComment" rows="3" maxlength="1000"></textarea>
+      </div>
+      <div class="field-error" id="reviewError"></div>
+      <div class="modal-close-row">
+        <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__submitReview('${orderId}')">Oddaj oceno</button>
+      </div>
+    `);
+  }
+  window.__openReviewModal = openReviewModal;
+
+  function setReviewStar(n) {
+    reviewRatingChoice = n;
+    document.querySelectorAll('#reviewStarPicker .review-star-btn').forEach((btn) => {
+      btn.textContent = Number(btn.dataset.n) <= n ? '★' : '☆';
+    });
+  }
+  window.__setReviewStar = setReviewStar;
+
+  async function submitReview(orderId) {
+    const errEl = document.getElementById('reviewError');
+    if (!reviewRatingChoice) { errEl.textContent = 'Izberite oceno (vsaj eno zvezdico).'; return; }
+    const comment = document.getElementById('reviewComment').value.trim();
+    try {
+      await apiFetch('/orders/' + orderId + '/review', { method: 'POST', body: { rating: reviewRatingChoice, comment } });
+      closeModal();
+      showToast('Hvala za oceno!');
+      customerOrders = await authedFetch('/customer/orders', {}, customerToken());
+      renderAccountOrders();
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  }
+  window.__submitReview = submitReview;
 
   document.getElementById('accountToggleModeBtn').addEventListener('click', () => {
     accountMode = accountMode === 'login' ? 'register' : 'login';
