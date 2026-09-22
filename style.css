@@ -181,6 +181,8 @@ textarea.text-input{resize:vertical; min-height:70px;}
 .mini-btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
 .mini-btn.ghost{background:transparent;}
 .empty-col{color:var(--ink-soft); font-size:.82rem; padding:10px 4px;}
+.order-items-line{font-size:.84rem; color:var(--ink-soft); margin:2px 0 6px;}
+.order-total-line{font-weight:700; font-size:.9rem; font-variant-numeric:tabular-nums;}
 
 .panel{background:var(--bg-elev); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; margin-bottom:28px;}
 .mm-cat-head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:20px; margin-bottom:2px; flex-wrap:wrap;}

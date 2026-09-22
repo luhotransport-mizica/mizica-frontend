@@ -13,6 +13,7 @@
     <div class="brand"><span class="brand-mark">M</span>Mizica</div>
     <div class="viewnav">
       <button data-view="market" class="active">Ponudba</button>
+      <button data-view="account" id="navAccountBtn">Moj račun</button>
       <button data-view="owner" id="navOwnerBtn" style="display:none;">Za gostilne<span class="nav-badge" id="ownerBadge"></span></button>
       <button data-view="admin" id="navAdminBtn" style="display:none;">Skrbnik</button>
     </div>
@@ -34,6 +35,7 @@
       <input class="text-input" type="text" id="marketSearch" placeholder="Išči gostilno ali kraj...">
       <select class="select-input" id="marketKuhinja"><option value="">Vsa kuhinja</option></select>
       <label class="checkbox-item"><input type="checkbox" id="marketOnlyOpen"> Samo odprto zdaj</label>
+      <label class="checkbox-item" id="marketOnlyMyKrajWrap" style="display:none;"><input type="checkbox" id="marketOnlyMyKraj" checked> Samo iz mojega kraja</label>
     </div>
 
     <div id="marketGrid" class="restaurant-grid"></div>
@@ -50,6 +52,53 @@
   <!-- ================= POTRDITEV NAROČILA ================= -->
   <section class="view" id="view-confirm">
     <div class="confirm-wrap" id="confirmContent"></div>
+  </section>
+
+  <!-- ================= MOJ RAČUN (STRANKA) ================= -->
+  <section class="view" id="view-account">
+    <div id="accountLoginWrap" class="login-wrap">
+      <div class="login-box">
+        <h2 id="accountFormTitle">Prijava</h2>
+        <p class="section-sub" id="accountFormSub">Prijavite se, da vidite zgodovino svojih naročil.</p>
+        <form id="accountLoginForm">
+          <div class="field-group">
+            <label class="field-label">E-pošta</label>
+            <input class="text-input" type="email" id="accountEmail" required autocomplete="username">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Geslo</label>
+            <input class="text-input" type="password" id="accountPassword" required autocomplete="current-password">
+          </div>
+          <div class="field-group" id="accountRegisterFields" style="display:none;">
+            <label class="field-label">Ime in priimek</label>
+            <input class="text-input" type="text" id="accountIme" autocomplete="name">
+            <label class="field-label" style="margin-top:10px;">Telefon</label>
+            <input class="text-input" type="tel" id="accountTelefon" autocomplete="tel">
+            <label class="field-label" style="margin-top:10px;">Kraj</label>
+            <input class="text-input" type="text" id="accountKraj" placeholder="npr. Brežice" autocomplete="address-level2">
+          </div>
+          <div class="field-error" id="accountLoginError"></div>
+          <button class="primary-btn" type="submit" id="accountSubmitBtn">Prijava</button>
+        </form>
+        <button class="link-btn" id="accountToggleModeBtn" type="button">Nimate računa? Registrirajte se</button>
+      </div>
+    </div>
+
+    <div id="accountAppWrap" style="display:none;">
+      <div class="logged-in-bar">
+        <div><span class="who" id="accountWhoName">—</span><br><span class="who-sub" id="accountWhoSub"></span></div>
+        <button class="secondary-btn" id="accountLogoutBtn">Odjava</button>
+      </div>
+      <div class="panel">
+        <h2 class="section-title">Moji podatki</h2>
+        <div class="settings-grid" id="accountProfile"></div>
+      </div>
+      <div class="panel">
+        <h2 class="section-title">Moja naročila</h2>
+        <p class="section-sub">Zgodovina in status vaših naročil pri vseh gostilnah.</p>
+        <div id="accountOrders"></div>
+      </div>
+    </div>
   </section>
 
   <!-- ================= OWNER (GOSTILNA) ================= -->

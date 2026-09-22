@@ -137,6 +137,7 @@
     window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
     if (name === 'owner') initOwnerView();
     if (name === 'admin') initAdminView();
+    if (name === 'account') initAccountView();
   }
   document.querySelectorAll('.viewnav button[data-view]').forEach((b) => {
     b.addEventListener('click', () => goToView(b.dataset.view));
@@ -185,15 +186,25 @@
     return tags.join('');
   }
 
+  function syncMyKrajFilterVisibility() {
+    const myKraj = customerToken() ? (customerMeta().kraj || '').trim() : '';
+    const wrap = document.getElementById('marketOnlyMyKrajWrap');
+    wrap.style.display = myKraj ? '' : 'none';
+    if (!myKraj) document.getElementById('marketOnlyMyKraj').checked = false;
+  }
+
   function renderMarket() {
     const q = (document.getElementById('marketSearch').value || '').toLowerCase().trim();
     const kuhinja = document.getElementById('marketKuhinja').value;
     const onlyOpen = document.getElementById('marketOnlyOpen').checked;
+    const myKraj = customerToken() ? (customerMeta().kraj || '').trim().toLowerCase() : '';
+    const onlyMyKraj = myKraj && document.getElementById('marketOnlyMyKraj').checked;
 
     const list = restaurants.filter((r) => {
       if (q && !((r.name || '').toLowerCase().includes(q) || (r.kraj || '').toLowerCase().includes(q))) return false;
       if (kuhinja && r.kuhinja !== kuhinja) return false;
       if (onlyOpen && !r.odprto_zdaj) return false;
+      if (onlyMyKraj && !(r.kraj || '').toLowerCase().includes(myKraj)) return false;
       return true;
     });
 
@@ -218,6 +229,7 @@
   document.getElementById('marketSearch').addEventListener('input', renderMarket);
   document.getElementById('marketKuhinja').addEventListener('change', renderMarket);
   document.getElementById('marketOnlyOpen').addEventListener('change', renderMarket);
+  document.getElementById('marketOnlyMyKraj').addEventListener('change', renderMarket);
 
   // =================================================================
   // RESTAVRACIJA + KOŠARICA
@@ -391,11 +403,11 @@
 
       <div class="field-group">
         <label class="field-label">Ime in priimek</label>
-        <input class="text-input" id="cartName" value="${esc(cart.customerName || '')}">
+        <input class="text-input" id="cartName" value="${esc(cart.customerName || (customerToken() ? (customerMeta().ime || '') : ''))}">
       </div>
       <div class="field-group">
         <label class="field-label">Telefon</label>
-        <input class="text-input" id="cartPhone" type="tel" value="${esc(cart.phone || '')}">
+        <input class="text-input" id="cartPhone" type="tel" value="${esc(cart.phone || (customerToken() ? (customerMeta().telefon || '') : ''))}">
       </div>
 
       <div class="field-error" id="cartError"></div>
@@ -432,14 +444,14 @@
     const btn = document.getElementById('placeOrderBtn');
     btn.disabled = true; btn.textContent = 'Oddajam...';
     try {
-      const result = await apiFetch('/orders', {
-        method: 'POST',
-        body: {
-          restaurant_id: currentRestaurant.id, customer_name: name, phone,
-          type: cart.type, address: cart.type === 'dostava' ? address : undefined,
-          time_slot: timeSlot, payment: cart.payment, items
-        }
-      });
+      const orderBody = {
+        restaurant_id: currentRestaurant.id, customer_name: name, phone,
+        type: cart.type, address: cart.type === 'dostava' ? address : undefined,
+        time_slot: timeSlot, payment: cart.payment, items
+      };
+      const result = customerToken()
+        ? await authedFetch('/orders', { method: 'POST', body: orderBody }, customerToken())
+        : await apiFetch('/orders', { method: 'POST', body: orderBody });
       cart = { restaurantId: null, lines: {}, type: null, timeSlot: '', payment: '' };
       renderConfirm(result.order, result.vat, currentRestaurant.name);
       goToView('confirm');
@@ -507,6 +519,149 @@
       showToast(e.message);
     }
   }
+
+  // =================================================================
+  // MOJ RAČUN (STRANKA)
+  // =================================================================
+  let customerSession = null;
+  let customerOrders = [];
+  let accountMode = 'login'; // 'login' | 'register'
+
+  function customerToken() { return customerSession && customerSession.access_token; }
+  function customerMeta() { return (customerSession && customerSession.user && customerSession.user.user_metadata) || {}; }
+
+  async function initAccountView() {
+    const { data } = await sb.auth.getSession();
+    if (data.session) {
+      customerSession = data.session;
+      await showAccountApp();
+    } else {
+      customerSession = null;
+      showAccountLogin();
+    }
+  }
+
+  function showAccountLogin() {
+    document.getElementById('accountLoginWrap').style.display = 'block';
+    document.getElementById('accountAppWrap').style.display = 'none';
+  }
+
+  async function showAccountApp() {
+    document.getElementById('accountLoginWrap').style.display = 'none';
+    document.getElementById('accountAppWrap').style.display = 'block';
+    const meta = customerMeta();
+    document.getElementById('accountWhoName').textContent = meta.ime || customerSession.user.email;
+    document.getElementById('accountWhoSub').textContent = customerSession.user.email;
+    renderAccountProfile();
+    syncMyKrajFilterVisibility();
+    renderMarket();
+    document.getElementById('accountOrders').innerHTML = '<div class="loading-note">Nalagam naročila...</div>';
+    try {
+      customerOrders = await authedFetch('/customer/orders', {}, customerToken());
+      renderAccountOrders();
+    } catch (e) {
+      document.getElementById('accountOrders').innerHTML = `<div class="error-note">Naročil ni bilo mogoče naložiti (${esc(e.message)}).</div>`;
+    }
+  }
+
+  function renderAccountProfile() {
+    const meta = customerMeta();
+    const wrap = document.getElementById('accountProfile');
+    wrap.innerHTML = `
+      <div class="settings-block">
+        <div class="settings-row"><span class="lbl">Ime in priimek</span><input class="text-input" style="max-width:220px;" value="${esc(meta.ime||'')}" onchange="window.__updateAccountMeta('ime',this.value)"></div>
+        <div class="settings-row"><span class="lbl">Telefon</span><input class="text-input" style="max-width:220px;" value="${esc(meta.telefon||'')}" onchange="window.__updateAccountMeta('telefon',this.value)"></div>
+        <div class="settings-row"><span class="lbl">Kraj</span><input class="text-input" style="max-width:220px;" value="${esc(meta.kraj||'')}" placeholder="npr. Brežice" onchange="window.__updateAccountMeta('kraj',this.value)"></div>
+      </div>
+    `;
+  }
+
+  async function updateAccountMeta(field, value) {
+    const meta = Object.assign({}, customerMeta(), { [field]: value });
+    const { data, error } = await sb.auth.updateUser({ data: meta });
+    if (error) { showToast(error.message); return; }
+    customerSession.user = data.user;
+    showToast('Shranjeno.');
+    syncMyKrajFilterVisibility();
+    renderMarket();
+  }
+  window.__updateAccountMeta = updateAccountMeta;
+
+  const CUSTOMER_STATUS_LABEL = {
+    novo: 'Novo', priprava: 'V pripravi', pripravljeno: 'Pripravljeno',
+    prevzeto: 'Prevzeto/oddano', zavrnjeno: 'Zavrnjeno/preklicano'
+  };
+
+  function renderAccountOrders() {
+    const wrap = document.getElementById('accountOrders');
+    if (!customerOrders.length) { wrap.innerHTML = '<p class="empty-col">Še nimate naročil.</p>'; return; }
+    wrap.innerHTML = customerOrders.map((o) => {
+      const rest = o.restaurants || {};
+      const total = o.vat ? o.vat.grandTotal : 0;
+      const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}`).join(', ');
+      return `
+        <div class="order-card">
+          <div class="order-card-top">
+            <span class="order-id">${esc(rest.name || 'Gostilna')}</span>
+            <span class="order-time">${new Date(o.placed_at).toLocaleString('sl-SI', { day:'2-digit', month:'2-digit', year:'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <div class="order-meta-row">
+            <span class="tag">${o.type === 'dostava' ? 'Dostava' : 'Prevzem'}</span>
+            <span class="tag gold">${esc(CUSTOMER_STATUS_LABEL[o.status] || o.status)}</span>
+          </div>
+          <p class="order-items-line">${items}</p>
+          <p class="order-total-line">${eur(total)}</p>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('accountToggleModeBtn').addEventListener('click', () => {
+    accountMode = accountMode === 'login' ? 'register' : 'login';
+    document.getElementById('accountFormTitle').textContent = accountMode === 'login' ? 'Prijava' : 'Registracija';
+    document.getElementById('accountFormSub').textContent = accountMode === 'login'
+      ? 'Prijavite se, da vidite zgodovino svojih naročil.'
+      : 'Ustvarite račun — hitreje boste naročali in videli zgodovino naročil.';
+    document.getElementById('accountRegisterFields').style.display = accountMode === 'register' ? 'block' : 'none';
+    document.getElementById('accountSubmitBtn').textContent = accountMode === 'login' ? 'Prijava' : 'Registracija';
+    document.getElementById('accountToggleModeBtn').textContent = accountMode === 'login' ? 'Nimate računa? Registrirajte se' : 'Že imate račun? Prijavite se';
+    document.getElementById('accountLoginError').textContent = '';
+  });
+
+  document.getElementById('accountLoginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('accountLoginError');
+    errEl.textContent = '';
+    const email = document.getElementById('accountEmail').value.trim();
+    const password = document.getElementById('accountPassword').value;
+    try {
+      if (accountMode === 'register') {
+        const ime = document.getElementById('accountIme').value.trim();
+        const telefon = document.getElementById('accountTelefon').value.trim();
+        const kraj = document.getElementById('accountKraj').value.trim();
+        const { data, error } = await sb.auth.signUp({ email, password, options: { data: { ime, telefon, kraj } } });
+        if (error) throw error;
+        customerSession = data.session;
+      } else {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        customerSession = data.session;
+      }
+      if (!customerSession) { errEl.textContent = 'Prijava ni uspela, poskusite znova.'; return; }
+      showToast(accountMode === 'register' ? 'Račun ustvarjen — dobrodošli!' : 'Prijavljeni ste.');
+      await showAccountApp();
+    } catch (err) {
+      errEl.textContent = err.message;
+    }
+  });
+
+  document.getElementById('accountLogoutBtn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    customerSession = null;
+    showAccountLogin();
+    syncMyKrajFilterVisibility();
+    renderMarket();
+  });
 
   // =================================================================
   // OWNER (GOSTILNA)
@@ -1361,6 +1516,17 @@
   // Če je uporabnik kliknil povezavo za nastavitev/obnovitev gesla, ne vemo vnaprej, ali je
   // lastnik gostilne ali skrbnik — pokažemo oba zavihka, da lahko izbere pravega.
   if (pendingAuthType) document.getElementById('navAdminBtn').style.display = '';
+
+  // Če je stranka že prijavljena od prej (isti brskalnik), to zaznamo ob zagonu,
+  // da se takoj prikažeta filter "Samo iz mojega kraja" in prednapolnjeni podatki pri naročilu.
+  (async () => {
+    const { data } = await sb.auth.getSession();
+    if (data.session && !pendingAuthType) {
+      customerSession = data.session;
+      syncMyKrajFilterVisibility();
+      renderMarket();
+    }
+  })();
 
   loadMarket();
   if (shareRestaurantId) {
