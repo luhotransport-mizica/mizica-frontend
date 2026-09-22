@@ -312,7 +312,9 @@
     const r = currentRestaurant;
     if (!cart.type) cart.type = r.prevzem_enabled ? 'prevzem' : (r.dostava_enabled ? 'dostava' : null);
 
-    const menuHtml = (r.meni || []).map((cat) => `
+    // Malica je vedno na vrhu ponudbe — stranka jo mora videti prvo, ne glede na vrstni red kategorij.
+    const sortedMeni = (r.meni || []).slice().sort((a, b) => (b.je_malica ? 1 : 0) - (a.je_malica ? 1 : 0));
+    const menuHtml = sortedMeni.map((cat) => `
       <div class="menu-cat">
         <h3>${esc(cat.name)} ${catTimeLabel(cat)}</h3>
         ${(cat.menu_items || []).map((it) => renderMenuItemRow(it)).join('') || '<p class="section-sub">Ni jedi v tej kategoriji.</p>'}
