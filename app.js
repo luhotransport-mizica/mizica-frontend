@@ -140,10 +140,12 @@
     rate_order: { sl: 'Ocenite naročilo', en: 'Rate order' },
     rated: { sl: 'Ocenjeno', en: 'Rated' },
     status_novo: { sl: 'Novo', en: 'New' },
-    status_priprava: { sl: 'V pripravi', en: 'Preparing' },
+    status_sprejeto: { sl: 'Sprejeto', en: 'Accepted' },
     status_pripravljeno: { sl: 'Pripravljeno', en: 'Ready' },
-    status_prevzeto: { sl: 'Prevzeto/oddano', en: 'Picked up/delivered' },
-    status_zavrnjeno: { sl: 'Zavrnjeno/preklicano', en: 'Rejected/cancelled' },
+    status_zakljuceno: { sl: 'Zaključeno', en: 'Completed' },
+    status_zavrnjeno: { sl: 'Zavrnjeno', en: 'Rejected' },
+    status_preklicano: { sl: 'Preklicano', en: 'Cancelled' },
+    status_ni_prevzel: { sl: 'Ni prevzeto', en: 'Not picked up' },
     nearby_title: { sl: 'Gostilne v bližini (do', en: 'Restaurants nearby (within' },
     nearby_none: { sl: 'V bližini (do', en: 'Nearby (within' },
     nearby_none_suffix: { sl: 'km) trenutno ni gostiln na Mizici.', en: 'km) there are currently no restaurants on Mizica.' },
@@ -1345,10 +1347,12 @@
 
   const CUSTOMER_STATUS_LABEL = {
     get novo() { return t('status_novo'); },
-    get priprava() { return t('status_priprava'); },
+    get sprejeto() { return t('status_sprejeto'); },
     get pripravljeno() { return t('status_pripravljeno'); },
-    get prevzeto() { return t('status_prevzeto'); },
-    get zavrnjeno() { return t('status_zavrnjeno'); }
+    get zakljuceno() { return t('status_zakljuceno'); },
+    get zavrnjeno() { return t('status_zavrnjeno'); },
+    get preklicano() { return t('status_preklicano'); },
+    get ni_prevzel() { return t('status_ni_prevzel'); }
   };
 
   function renderAccountOrders() {
@@ -1360,7 +1364,7 @@
       const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' (' + esc(i.variant_name) + ')' : ''}${(i.addons && i.addons.length) ? ' +' + i.addons.map((a) => esc(a.name)).join(', +') : ''}`).join(', ');
       const existingReview = Array.isArray(o.reviews) ? o.reviews[0] : o.reviews;
       let reviewHtml = '';
-      if (o.status === 'prevzeto') {
+      if (o.status === 'zakljuceno') {
         reviewHtml = existingReview
           ? `<div class="order-review-done"><span class="review-stars">${starsHtml(existingReview.rating)}</span> ${t('rated')}</div>`
           : `<button class="secondary-btn" type="button" style="margin-top:8px;" onclick="window.__openReviewModal('${o.id}')">${t('rate_order')}</button>`;
@@ -1648,13 +1652,29 @@
 
   const OWNER_STATUS_COLS = [
     ['novo', 'Novo'],
-    ['priprava', 'V pripravi'],
+    ['sprejeto', 'Sprejeto'],
     ['pripravljeno', 'Pripravljeno'],
-    ['prevzeto', 'Prevzeto/oddano']
+    ['zakljuceno', 'Zaključeno']
   ];
-  const STATUS_NEXT_LABEL = { novo: 'Sprejmi', priprava: 'Pripravljeno', pripravljeno: 'Prevzeto/oddano' };
+  // Gostilna mora med gužvo klikati čim manj: samo 2 obvezna klika na naročilo — "Sprejmi" in nato
+  // "Pripravljeno" (besedilo se prilagodi prevzemu/dostavi, akcija je ista). Zaključek je nato samodejen
+  // po preteku roka; "Zaključi zdaj" je zgolj neobvezna možnost za predčasen ročni zaključek.
+  function readyLabel(o) { return o.type === 'dostava' ? 'Oddano v dostavo' : 'Pripravljeno za prevzem'; }
+  const CANCEL_REASON_LABELS = {
+    kupec_ni_prevzel: 'Kupec ni prevzel naročila',
+    zaloga_posla: 'Zaloga je pošla / jed ni na voljo',
+    napaka_v_narocilu: 'Napaka pri naročilu',
+    tehnicna_tezava: 'Tehnična težava',
+    drugo: 'Drugo'
+  };
+  // Rok za samodejni zaključek teče od prve potrditve (accepted_at) — 2h za prevzem, 3h za dostavo.
+  function autoCompleteDeadline(o) {
+    if (!o.accepted_at) return null;
+    const ms = (o.type === 'dostava' ? 3 : 2) * 60 * 60 * 1000;
+    return new Date(new Date(o.accepted_at).getTime() + ms);
+  }
 
-  // "Prevzeto/oddano" naročila se čez dan kopičijo — prikažemo jih samo zadnjih nekaj,
+  // "Zaključeno" naročila se čez dan kopičijo — prikažemo jih samo zadnjih nekaj,
   // ostalo je na voljo z gumbom "Pokaži več" (ostanejo v analitiki/zgodovini, samo skrita so s pogleda).
   let prevzetoShowCount = 3;
   function showMorePrevzeto() { prevzetoShowCount += 10; renderOwnerBoard(); }
@@ -1664,7 +1684,7 @@
     const board = document.getElementById('ownerBoard');
     board.innerHTML = OWNER_STATUS_COLS.map(([status, label]) => {
       const list = ownerOrders.filter((o) => o.status === status);
-      if (status === 'prevzeto') {
+      if (status === 'zakljuceno') {
         const shown = list.slice(0, prevzetoShowCount);
         return `
           <div class="board-col">
@@ -1693,11 +1713,11 @@
     }
   }
 
-  // Zavrnjena/preklicana naročila niso ves čas na strani (samo se kopičijo) — na voljo so
+  // Zavrnjena/preklicana naročila (pred sprejemom ali po njem) niso ves čas na strani — na voljo so
   // v zloženem meniju, ki ga gostilna odpre po potrebi.
   let rejectedOpen = false;
   function renderRejectedDropdown() {
-    const rejected = ownerOrders.filter((o) => o.status === 'zavrnjeno');
+    const rejected = ownerOrders.filter((o) => ['zavrnjeno', 'preklicano', 'ni_prevzel'].includes(o.status));
     const btn = document.getElementById('rejectedToggleBtn');
     btn.textContent = `Zavrnjena/preklicana naročila (${rejected.length}) ${rejectedOpen ? '▲' : '▼'}`;
     const panel = document.getElementById('rejectedPanel');
@@ -1716,7 +1736,27 @@
     const itemsSubtotal = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0);
     const discountTotal = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
     const total = Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0);
-    const next = STATUS_NEXT_LABEL[o.status];
+    const deadline = ['sprejeto', 'pripravljeno'].includes(o.status) ? autoCompleteDeadline(o) : null;
+    const cancelReasonLabel = o.cancel_reason_code ? (CANCEL_REASON_LABELS[o.cancel_reason_code] || o.cancel_reason_code) : null;
+    let actions = '';
+    if (o.status === 'novo') {
+      actions = `
+        <button class="mini-btn primary" type="button" onclick="window.__acceptOrder('${o.id}')">Sprejmi</button>
+        <button class="mini-btn ghost" type="button" onclick="window.__rejectOrder('${o.id}')">Zavrni</button>
+      `;
+    } else if (o.status === 'sprejeto') {
+      actions = `
+        <button class="mini-btn primary" type="button" onclick="window.__readyOrder('${o.id}')">${readyLabel(o)}</button>
+        <button class="mini-btn ghost" type="button" onclick="window.__cancelOrder('${o.id}')">Prekliči</button>
+      `;
+    } else if (o.status === 'pripravljeno') {
+      actions = `
+        <button class="mini-btn ghost" type="button" onclick="window.__completeOrder('${o.id}')">Zaključi zdaj</button>
+        <button class="mini-btn ghost" type="button" onclick="window.__cancelOrder('${o.id}')">Prekliči</button>
+      `;
+    } else if (o.status === 'zakljuceno') {
+      actions = `<button class="mini-btn ghost" type="button" onclick="window.__correctionRequest('${o.id}')">Zahtevaj popravek</button>`;
+    }
     return `
       <div class="order-card ${o.status === 'novo' ? 'is-new' : ''}">
         <div class="order-card-top">
@@ -1733,10 +1773,11 @@
         <div class="order-items">Tel: ${esc(o.phone)}</div>
         ${discountTotal > 0 ? `<div class="order-items">Popust: &minus;${eur(discountTotal)}${o.discount_code_id && o.loyalty_points_used ? ' (koda + točke)' : (o.loyalty_points_used ? ' (točke)' : ' (koda)')}</div>` : ''}
         <div class="order-total">${eur(total)}</div>
+        ${deadline ? `<div class="order-items">Samodejni zaključek: do ${deadline.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
+        ${cancelReasonLabel ? `<div class="order-reject">Razlog: ${esc(cancelReasonLabel)}</div>` : ''}
         ${o.rejection_reason ? `<div class="order-reject">${esc(o.rejection_reason)}</div>` : ''}
         <div class="order-actions">
-          ${next ? `<button class="mini-btn primary" type="button" onclick="window.__advanceOrder('${o.id}')">${next}</button>` : ''}
-          ${next ? `<button class="mini-btn ghost" type="button" onclick="window.__rejectOrder('${o.id}')">Zavrni</button>` : ''}
+          ${actions}
           <button class="mini-btn ghost" type="button" onclick="window.__printOrder('${o.id}')">Natisni</button>
         </div>
       </div>
@@ -1794,7 +1835,10 @@
   // Ker plačila NE gredo prek Mizice, mora vsako naročilo za DDV/FURS poročati gostilna sama —
   // izvoz ji da razčlenitev po stopnjah DDV za izbrano obdobje, pripravljeno za Excel (ločeno s ";",
   // decimalna vejica, UTF-8 z BOM, da so šumniki pravilno prikazani).
-  const ORDER_STATUS_LABEL_CSV = { novo: 'Novo', priprava: 'V pripravi', pripravljeno: 'Pripravljeno', prevzeto: 'Prevzeto/oddano', zavrnjeno: 'Zavrnjeno/preklicano' };
+  const ORDER_STATUS_LABEL_CSV = {
+    novo: 'Novo', sprejeto: 'Sprejeto', pripravljeno: 'Pripravljeno', zakljuceno: 'Zaključeno',
+    zavrnjeno: 'Zavrnjeno', preklicano: 'Preklicano', ni_prevzel: 'Ni prevzeto'
+  };
 
   function clientVatBreakdown(items, deliveryFee, discount) {
     const groups = {};
@@ -1829,7 +1873,7 @@
       <p class="section-sub">Izvozite naročila za izbrano obdobje — primerno za obračun DDV in poročanje FURS. Odpre se v Excelu.</p>
       <div class="field-group"><label class="field-label">Od datuma</label><input class="text-input" type="date" id="exportFrom" value="${toISO(firstOfMonth)}"></div>
       <div class="field-group"><label class="field-label">Do datuma</label><input class="text-input" type="date" id="exportTo" value="${toISO(today)}"></div>
-      <label class="chip-check" style="margin-top:4px;"><input type="checkbox" id="exportIncludeRejected"> Vključi zavrnjena/preklicana naročila</label>
+      <label class="chip-check" style="margin-top:4px;"><input type="checkbox" id="exportIncludeRejected"> Vključi zavrnjena/preklicana naročila in tista, ki jih kupec ni prevzel</label>
       <div class="field-error" id="exportError"></div>
       <button class="primary-btn" type="button" style="margin-top:16px;" onclick="window.__runExportOrders()">Prenesi CSV</button>
     `);
@@ -1849,7 +1893,8 @@
     const orders = ownerOrders.filter((o) => {
       const d = new Date(o.placed_at);
       if (d < from || d > to) return false;
-      if (o.status === 'zavrnjeno' && !includeRejected) return false;
+      if (o.status === 'novo') return false; // še ne sprejeto naročilo ni pravi promet
+      if (['zavrnjeno', 'preklicano', 'ni_prevzel'].includes(o.status) && !includeRejected) return false;
       return true;
     }).slice().sort((a, b) => new Date(a.placed_at) - new Date(b.placed_at));
 
@@ -1911,13 +1956,30 @@
   }
   window.__runExportOrders = runExportOrders;
 
-  async function advanceOrder(id) {
+  // Obvezna 2 klika: Sprejmi -> Pripravljeno. Zaključek je nato samodejen (ali neobvezen ročni "Zaključi zdaj").
+  async function acceptOrder(id) {
     try {
-      await authedFetch('/owner/orders/' + id + '/advance', { method: 'POST' }, ownerToken());
+      await authedFetch('/owner/orders/' + id + '/accept', { method: 'POST' }, ownerToken());
       await loadOwnerData();
     } catch (e) { showToast(e.message); }
   }
-  window.__advanceOrder = advanceOrder;
+  window.__acceptOrder = acceptOrder;
+
+  async function readyOrder(id) {
+    try {
+      await authedFetch('/owner/orders/' + id + '/ready', { method: 'POST' }, ownerToken());
+      await loadOwnerData();
+    } catch (e) { showToast(e.message); }
+  }
+  window.__readyOrder = readyOrder;
+
+  async function completeOrder(id) {
+    try {
+      await authedFetch('/owner/orders/' + id + '/complete', { method: 'POST' }, ownerToken());
+      await loadOwnerData();
+    } catch (e) { showToast(e.message); }
+  }
+  window.__completeOrder = completeOrder;
 
   function rejectOrder(id) {
     openModal(`
@@ -1940,6 +2002,61 @@
     } catch (e) { showToast(e.message); }
   }
   window.__confirmReject = confirmReject;
+
+  // ---- Preklic naročila PO sprejemu — obvezen razlog s seznama, pri "drugo" obvezen komentar ----
+  function cancelOrder(id) {
+    const options = Object.entries(CANCEL_REASON_LABELS).map(([code, label]) => `<option value="${code}">${esc(label)}</option>`).join('');
+    openModal(`
+      <h3>Prekliči naročilo</h3>
+      <div class="field-group">
+        <label class="field-label">Razlog preklica</label>
+        <select class="text-input" id="cancelReasonCode">${options}</select>
+      </div>
+      <div class="field-group"><label class="field-label">Komentar (obvezen pri "Drugo")</label><textarea class="text-input" id="cancelComment" rows="3"></textarea></div>
+      <div class="modal-close-row">
+        <button class="secondary-btn" type="button" onclick="closeModal()">Nazaj</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__confirmCancel('${id}')">Prekliči naročilo</button>
+      </div>
+    `);
+  }
+  window.__cancelOrder = cancelOrder;
+
+  async function confirmCancel(id) {
+    const reason_code = document.getElementById('cancelReasonCode').value;
+    const comment = document.getElementById('cancelComment').value.trim();
+    if (reason_code === 'drugo' && !comment) { showToast('Pri razlogu "Drugo" je komentar obvezen.'); return; }
+    try {
+      await authedFetch('/owner/orders/' + id + '/cancel', { method: 'POST', body: { reason_code, comment } }, ownerToken());
+      closeModal();
+      await loadOwnerData();
+    } catch (e) { showToast(e.message); }
+  }
+  window.__confirmCancel = confirmCancel;
+
+  // ---- Zahtevek za popravek že zaključenega naročila ----
+  function correctionRequest(id) {
+    openModal(`
+      <h3>Zahtevaj popravek naročila</h3>
+      <p class="muted-text">Naročilo je že zaključeno, zato ga ne morete več sami spremeniti. Opišite, kaj je narobe — skrbnik bo pregledal.</p>
+      <div class="field-group"><label class="field-label">Razlog</label><textarea class="text-input" id="correctionReason" rows="3"></textarea></div>
+      <div class="modal-close-row">
+        <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__confirmCorrectionRequest('${id}')">Pošlji zahtevek</button>
+      </div>
+    `);
+  }
+  window.__correctionRequest = correctionRequest;
+
+  async function confirmCorrectionRequest(id) {
+    const reason = document.getElementById('correctionReason').value.trim();
+    if (!reason) { showToast('Vpišite razlog za popravek.'); return; }
+    try {
+      await authedFetch('/owner/orders/' + id + '/correction-request', { method: 'POST', body: { reason } }, ownerToken());
+      closeModal();
+      showToast('Zahtevek za popravek je poslan skrbniku.');
+    } catch (e) { showToast(e.message); }
+  }
+  window.__confirmCorrectionRequest = confirmCorrectionRequest;
 
   // ---------------- owner: meni ----------------
   const SL_DAYS = ['Nedelja', 'Ponedeljek', 'Torek', 'Sreda', 'Četrtek', 'Petek', 'Sobota'];
@@ -2606,6 +2723,7 @@
       document.getElementById('monthSelect').addEventListener('change', () => { adminMonth = document.getElementById('monthSelect').value; loadAnalytics(); });
       document.getElementById('adminSearchInput').addEventListener('input', renderAdminRestaurantTable);
       document.getElementById('adminStatusFilter').addEventListener('change', renderAdminRestaurantTable);
+      document.getElementById('correctionsStatusFilter').addEventListener('change', loadCorrectionRequests);
       document.querySelectorAll('#atab-gostilne .sort-th').forEach((th) => {
         th.addEventListener('click', () => {
           const field = th.dataset.sort;
@@ -2653,7 +2771,7 @@
     document.getElementById('adminWhoName').textContent = adminSession.user.email;
     populateMonthSelect();
     await loadAdminRestaurants();
-    await Promise.all([loadAnalytics(), loadDashboard()]);
+    await Promise.all([loadAnalytics(), loadDashboard(), loadCorrectionRequests()]);
   }
 
   function monthKey(offset) {
@@ -2714,6 +2832,19 @@
     return true;
   }
 
+  // Delež naročil, ki jih je gostilna PO sprejemu preklicala ali označila, da jih kupec ni prevzel —
+  // to sta edini stanji, ki dejansko "pobegneta" proviziji. Rdeče opozorilo, kadar strežnik oceni,
+  // da je delež pri tej gostilni bistveno nad povprečjem platforme (glej admin.js: computeCancelRates).
+  function cancelRateCell(r) {
+    const pct = Math.round((r.cancel_rate || 0) * 1000) / 10;
+    const platformPct = Math.round((r.platform_cancel_rate || 0) * 1000) / 10;
+    const sample = r.accepted_orders || 0;
+    if (!sample) return `<span class="status-pill trial-none">—</span>`;
+    const cls = r.flagged ? 'trial-over' : 'trial-ok';
+    const flag = r.flagged ? ' &#9888;' : '';
+    return `<span class="status-pill ${cls}" title="Povprečje platforme: ${platformPct}% (${sample} sprejetih naročil)">${pct}%${flag}</span>`;
+  }
+
   function renderAdminRestaurantTable() {
     const q = (document.getElementById('adminSearchInput').value || '').toLowerCase().trim();
     const statusFilter = document.getElementById('adminStatusFilter').value;
@@ -2746,6 +2877,7 @@
           ${!r.trial_dismissed && r.trial_ends_at ? `<button class="link-btn" type="button" style="display:block; margin-top:4px; font-size:.72rem;" onclick="window.__dismissTrial('${r.id}')">Označi kot plačujočo</button>` : ''}
         </td>
         <td class="billing-line">${billingText(r)}</td>
+        <td>${cancelRateCell(r)}</td>
         <td class="td-actions">
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openBillingModal('${r.id}')">Obračun</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openSetPasswordModal('${r.id}')">Nastavi geslo</button>
@@ -2758,6 +2890,60 @@
     }).join('');
     renderTrialReminders();
   }
+
+  // ---- Zahtevki za popravek zaključenega naročila ----
+  let adminCorrections = [];
+  async function loadCorrectionRequests() {
+    const status = document.getElementById('correctionsStatusFilter').value;
+    try {
+      const qs = status ? ('?status=' + encodeURIComponent(status)) : '';
+      adminCorrections = await authedFetch('/admin/correction-requests' + qs, {}, adminToken());
+      renderCorrectionsTable();
+    } catch (e) { showToast(e.message); }
+  }
+
+  const CORRECTION_STATUS_LABEL = { v_obravnavi: 'V obravnavi', odobreno: 'Odobreno', zavrnjeno: 'Zavrnjeno' };
+  function renderCorrectionsTable() {
+    const tbody = document.getElementById('correctionsTableBody');
+    tbody.innerHTML = adminCorrections.length ? adminCorrections.map((c) => {
+      const order = c.orders || {};
+      const restName = (c.restaurants || {}).name || '—';
+      const pending = c.status === 'v_obravnavi';
+      return `
+        <tr>
+          <td>${new Date(c.created_at).toLocaleString('sl-SI', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+          <td>${esc(restName)}</td>
+          <td>${esc(order.customer_name || '')}<br><span class="section-sub" style="font-size:.76rem;">${order.placed_at ? new Date(order.placed_at).toLocaleDateString('sl-SI') : ''}</span></td>
+          <td>${esc(c.reason)}${c.admin_note ? `<br><span class="section-sub" style="font-size:.76rem;">Opomba: ${esc(c.admin_note)}</span>` : ''}</td>
+          <td><span class="status-pill ${c.status === 'odobreno' ? 'trial-ok' : (c.status === 'zavrnjeno' ? 'trial-over' : 'trial-soon')}">${CORRECTION_STATUS_LABEL[c.status] || c.status}</span></td>
+          <td class="td-actions">
+            ${pending ? `
+              <button class="secondary-btn on-dark-btn" type="button" onclick="window.__resolveCorrection('${c.id}','odobreno')">Odobri</button>
+              <button class="secondary-btn on-dark-btn" type="button" onclick="window.__resolveCorrection('${c.id}','zavrnjeno')">Zavrni</button>
+            ` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('') : `<tr><td colspan="6" class="empty-note">Ni zahtevkov.</td></tr>`;
+
+    const badge = document.getElementById('adminCorrectionsTabBadge');
+    const pendingCount = adminCorrections.filter((c) => c.status === 'v_obravnavi').length;
+    badge.textContent = pendingCount;
+    badge.style.display = pendingCount ? '' : 'none';
+  }
+
+  async function resolveCorrection(id, status) {
+    let admin_note = '';
+    if (status === 'zavrnjeno') {
+      admin_note = window.prompt('Neobvezna opomba za gostilno (razlog zavrnitve):', '') || '';
+    }
+    try {
+      await authedFetch('/admin/correction-requests/' + id, { method: 'PATCH', body: { status, admin_note } }, adminToken());
+      await loadCorrectionRequests();
+      showToast(status === 'odobreno' ? 'Zahtevek odobren.' : 'Zahtevek zavrnjen.');
+    } catch (e) { showToast(e.message); }
+  }
+  window.__resolveCorrection = resolveCorrection;
 
   // Trajno brisanje gostilne — nepovratno (izbrišejo se tudi vsa njena naročila, meni, ocene ipd.),
   // zato zahtevamo, da skrbnik v potrditvenem oknu vtipka ime gostilne, preden gumb postane aktiven.
