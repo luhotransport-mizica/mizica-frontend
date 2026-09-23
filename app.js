@@ -24,6 +24,13 @@
     market_eyebrow: { sl: 'Brez provizije za plačila', en: 'No commission on payments' },
     market_h1: { sl: 'Naročite pri lokalnih gostilnah', en: 'Order from local restaurants' },
     market_lede: { sl: 'Plačilo vedno neposredno gostilni — z gotovino ali kartico ob prevzemu/dostavi. Mizica ne obdeluje plačil.', en: 'Payment always goes directly to the restaurant — cash or card on pickup/delivery. Mizica does not process payments.' },
+    how_it_works_title: { sl: 'Kako deluje?', en: 'How it works' },
+    how_it_works_1_title: { sl: 'Izberi gostilno', en: 'Choose a restaurant' },
+    how_it_works_1_text: { sl: 'Poišči gostilno v svojem kraju ali bližini.', en: 'Find a restaurant in your area or nearby.' },
+    how_it_works_2_title: { sl: 'Naroči', en: 'Place your order' },
+    how_it_works_2_text: { sl: 'Sestavi naročilo in izberi prevzem ali dostavo.', en: 'Build your order and choose pickup or delivery.' },
+    how_it_works_3_title: { sl: 'Plačaj ob prevzemu', en: 'Pay on pickup' },
+    how_it_works_3_text: { sl: 'Plačaš neposredno gostilni — z gotovino ali kartico.', en: "Pay the restaurant directly — cash or card." },
     market_search_ph: { sl: 'Išči gostilno ali kraj...', en: 'Search restaurant or town...' },
     market_all_cuisine: { sl: 'Vsa kuhinja', en: 'All cuisines' },
     market_only_open: { sl: 'Samo odprto zdaj', en: 'Open now only' },
@@ -187,6 +194,13 @@
     setText('marketEyebrow', 'market_eyebrow');
     setText('marketH1', 'market_h1');
     document.getElementById('marketLede').innerHTML = t('market_lede');
+    setText('howItWorksTitle', 'how_it_works_title');
+    setText('howItWorks1Title', 'how_it_works_1_title');
+    setText('howItWorks1Text', 'how_it_works_1_text');
+    setText('howItWorks2Title', 'how_it_works_2_title');
+    setText('howItWorks2Text', 'how_it_works_2_text');
+    setText('howItWorks3Title', 'how_it_works_3_title');
+    setText('howItWorks3Text', 'how_it_works_3_text');
     setPh('marketSearch', 'market_search_ph');
     setText('marketOnlyOpenLbl', 'market_only_open');
     setText('marketOnlyMyKrajLbl', 'market_only_nearby');
