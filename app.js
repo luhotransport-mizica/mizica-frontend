@@ -33,6 +33,7 @@
     how_it_works_3_text: { sl: 'Plačaš neposredno gostilni — z gotovino ali kartico.', en: "Pay the restaurant directly — cash or card." },
     market_nearby_note_prefix: { sl: 'Ni ujemanja po imenu — prikazujem gostilne v bližini', en: 'No name matches — showing restaurants near' },
     market_nearby_note_suffix: { sl: 'do', en: 'within' },
+    malica_today_suffix: { sl: ' (danes)', en: ' (today)' },
     market_search_ph: { sl: 'Išči gostilno ali kraj...', en: 'Search restaurant or town...' },
     market_all_cuisine: { sl: 'Vsa kuhinja', en: 'All cuisines' },
     market_only_open: { sl: 'Samo odprto zdaj', en: 'Open now only' },
@@ -680,7 +681,19 @@
     if (!cart.type) cart.type = r.prevzem_enabled ? 'prevzem' : (r.dostava_enabled ? 'dostava' : null);
 
     // Malica je vedno na vrhu ponudbe — stranka jo mora videti prvo, ne glede na vrstni red kategorij.
-    const sortedMeni = (r.meni || []).slice().sort((a, b) => (b.je_malica ? 1 : 0) - (a.je_malica ? 1 : 0));
+    // Pretekli dnevi malice se ne prikažejo (isMalicaVisible), med malicami pa je vrstni red po datumu
+    // (danes prva, nato prihodnji dnevi), da stranke vidijo tudi že vnesene ponudbe za naprej.
+    const sortedMeni = (r.meni || [])
+      .filter(isMalicaVisible)
+      .slice()
+      .sort((a, b) => {
+        const am = a.je_malica ? 1 : 0, bm = b.je_malica ? 1 : 0;
+        if (am !== bm) return bm - am;
+        if (a.je_malica && b.je_malica && a.malica_datum && b.malica_datum) {
+          return a.malica_datum < b.malica_datum ? -1 : a.malica_datum > b.malica_datum ? 1 : 0;
+        }
+        return 0;
+      });
 
     // En sam meni brez podkategorij ni smiselno prikazovati kot "izberite kategorijo" — pokažemo jedi kar naravnost.
     const effectiveSelected = sortedMeni.length <= 1 ? (sortedMeni[0] ? sortedMeni[0].id : null) : selectedMenuCat;
@@ -1888,7 +1901,20 @@
     if (isNaN(d.getTime())) return dateStr;
     return `${SL_DAYS[d.getDay()]}, ${d.toLocaleDateString('sl-SI')}`;
   }
-  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  // Lokalni (ne UTC) današnji datum kot niz YYYY-MM-DD — pomembno okoli polnoči, saj bi
+  // .toISOString() (UTC) v Sloveniji (UTC+1/+2) med 00:00 in 02:00 vrnil še "včerajšnji" datum.
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // Malica za pretekle dni se stranki ne prikaže (ni več aktualna); malica brez datuma (splošna
+  // dnevna ponudba) ali z datumom danes/v prihodnje pa se prikaže, da lahko stranke vidijo tudi
+  // že vnesene ponudbe za naslednje dni vnaprej.
+  function isMalicaVisible(cat) {
+    if (!cat.je_malica || !cat.malica_datum) return true;
+    return cat.malica_datum >= todayStr();
+  }
 
   // forCustomer=true prevede oznake glede na izbran jezik strani (stran za stranke); gostilna
   // (renderOwnerMenu) vedno vidi slovensko, zato ta zastavica tam ostane privzeto false.
@@ -1896,11 +1922,15 @@
     const en = forCustomer && uiLang === 'en';
     const parts = [];
     if (cat.je_malica) {
-      const stale = cat.malica_datum && cat.malica_datum !== todayStr();
+      // "Stale" (opozorilo gostilni, naj posodobi datum) pomeni pretekel datum — to stranke nikoli ne vidijo,
+      // saj se pretekle malice zanje filtrirajo (isMalicaVisible), tu pa še vedno velja za pogled gostilne.
+      const stale = cat.malica_datum && cat.malica_datum < todayStr();
+      const isToday = cat.malica_datum && cat.malica_datum === todayStr();
       const dateLabel = cat.malica_datum
         ? (en ? new Date(cat.malica_datum + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : slDateLabel(cat.malica_datum))
         : (en ? "Today's special" : 'Malica');
-      parts.push(`<span class="pill-daily${stale ? ' pill-stale' : ''}">${dateLabel}${stale ? (en ? ' — may be outdated' : ' — morda ni več aktualno') : ''}</span>`);
+      const suffix = stale ? (en ? ' — may be outdated' : ' — morda ni več aktualno') : (isToday && forCustomer ? t('malica_today_suffix') : '');
+      parts.push(`<span class="pill-daily${stale ? ' pill-stale' : ''}">${dateLabel}${suffix}</span>`);
     }
     if (cat.aktivna_od || cat.aktivna_do) {
       const od = cat.aktivna_od ? cat.aktivna_od.slice(0, 5) : '?';
