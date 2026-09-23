@@ -2480,6 +2480,10 @@
   let adminAnalytics = null;
   let adminInited = false;
   let adminSort = { field: 'promet', dir: 'desc' };
+  let adminRestaurantSort = { field: 'name', dir: 'asc' };
+  let adminTrend = null;
+  let chartEarningInstance = null;
+  let chartOrdersInstance = null;
 
   function adminToken() { return adminSession && adminSession.access_token; }
 
@@ -2494,9 +2498,9 @@
     }
     if (!adminInited) {
       adminInited = true;
-      document.querySelectorAll('.admin-subnav button').forEach((b) => {
+      document.querySelectorAll('.admin-nav-btn').forEach((b) => {
         b.addEventListener('click', () => {
-          document.querySelectorAll('.admin-subnav button').forEach((x) => x.classList.remove('active'));
+          document.querySelectorAll('.admin-nav-btn').forEach((x) => x.classList.remove('active'));
           document.querySelectorAll('.atab').forEach((x) => x.classList.remove('active'));
           b.classList.add('active');
           document.getElementById('atab-' + b.dataset.atab).classList.add('active');
@@ -2504,6 +2508,15 @@
       });
       document.getElementById('monthSelect').addEventListener('change', () => { adminMonth = document.getElementById('monthSelect').value; loadAnalytics(); });
       document.getElementById('adminSearchInput').addEventListener('input', renderAdminRestaurantTable);
+      document.getElementById('adminStatusFilter').addEventListener('change', renderAdminRestaurantTable);
+      document.querySelectorAll('#atab-gostilne .sort-th').forEach((th) => {
+        th.addEventListener('click', () => {
+          const field = th.dataset.sort;
+          if (adminRestaurantSort.field === field) adminRestaurantSort.dir = adminRestaurantSort.dir === 'asc' ? 'desc' : 'asc';
+          else adminRestaurantSort = { field, dir: 'asc' };
+          renderAdminRestaurantTable();
+        });
+      });
     }
   }
 
@@ -2542,7 +2555,8 @@
     document.getElementById('adminAppWrap').style.display = 'block';
     document.getElementById('adminWhoName').textContent = adminSession.user.email;
     populateMonthSelect();
-    await Promise.all([loadAdminRestaurants(), loadAnalytics()]);
+    await loadAdminRestaurants();
+    await Promise.all([loadAnalytics(), loadDashboard()]);
   }
 
   function monthKey(offset) {
@@ -2586,9 +2600,42 @@
     return { label: `Še ${daysLeft} dni (${dateLabel})`, cls: 'trial-ok' };
   }
 
+  // Ali je gostilna trenutno v aktivnem (še ne poteklem, ne potrjenem) preizkusu — enaka logika kot
+  // na strežniku (glej isTrialActive v admin.js), da se filter "V preizkusu"/"Redne" ujema z analitiko.
+  function isTrialActiveClient(r) {
+    if (r.trial_dismissed || !r.trial_ends_at) return false;
+    const todayISO = new Date().toISOString().slice(0, 10);
+    return todayISO <= r.trial_ends_at;
+  }
+
+  function restaurantMatchesStatusFilter(r, filterVal) {
+    if (!filterVal) return true;
+    if (filterVal === 'aktivna') return !!r.aktivna;
+    if (filterVal === 'neaktivna') return !r.aktivna;
+    if (filterVal === 'preizkus') return isTrialActiveClient(r);
+    if (filterVal === 'redna') return !isTrialActiveClient(r);
+    return true;
+  }
+
   function renderAdminRestaurantTable() {
     const q = (document.getElementById('adminSearchInput').value || '').toLowerCase().trim();
-    const list = adminRestaurants.filter((r) => !q || (r.name || '').toLowerCase().includes(q) || (r.kraj || '').toLowerCase().includes(q));
+    const statusFilter = document.getElementById('adminStatusFilter').value;
+    let list = adminRestaurants.filter((r) =>
+      (!q || (r.name || '').toLowerCase().includes(q) || (r.kraj || '').toLowerCase().includes(q)) &&
+      restaurantMatchesStatusFilter(r, statusFilter)
+    );
+    const { field, dir } = adminRestaurantSort;
+    list = list.slice().sort((a, b) => {
+      let av, bv;
+      if (field === 'aktivna') { av = a.aktivna ? 1 : 0; bv = b.aktivna ? 1 : 0; }
+      else { av = (a[field] || '').toString().toLowerCase(); bv = (b[field] || '').toString().toLowerCase(); }
+      if (av < bv) return dir === 'asc' ? -1 : 1;
+      if (av > bv) return dir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    document.querySelectorAll('#atab-gostilne .sort-th').forEach((th) => {
+      th.classList.toggle('sort-th-active', th.dataset.sort === field);
+    });
     document.getElementById('adminTableBody').innerHTML = list.map((r) => {
       const st = trialStatus(r);
       return `
@@ -2607,12 +2654,45 @@
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openSetPasswordModal('${r.id}')">Nastavi geslo</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__copyRestaurantLink('${r.id}','${esc(r.name).replace(/'/g, "\\'")}')">Kopiraj povezavo</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__toggleActive('${r.id}',${!r.aktivna})">${r.aktivna ? 'Deaktiviraj' : 'Aktiviraj'}</button>
+          <button class="danger-btn" type="button" onclick="window.__confirmDeleteRestaurant('${r.id}','${esc(r.name).replace(/'/g, "\\'")}')">Izbriši</button>
         </td>
       </tr>
     `;
     }).join('');
     renderTrialReminders();
   }
+
+  // Trajno brisanje gostilne — nepovratno (izbrišejo se tudi vsa njena naročila, meni, ocene ipd.),
+  // zato zahtevamo, da skrbnik v potrditvenem oknu vtipka ime gostilne, preden gumb postane aktiven.
+  function confirmDeleteRestaurant(id, name) {
+    openModal(`
+      <h3>Izbriši gostilno "${esc(name)}"?</h3>
+      <p class="section-sub" style="margin-bottom:10px;">Tega ni mogoče razveljaviti. Izbrišejo se tudi vsa njena naročila, meni, ocene in obračuni. Za potrditev vtipkajte ime gostilne:</p>
+      <input class="text-input" type="text" id="deleteConfirmInput" placeholder="${esc(name)}" autocomplete="off">
+      <div class="field-error" id="deleteConfirmError"></div>
+      <div class="inline-form-actions" style="margin-top:14px;">
+        <button class="danger-btn" type="button" id="deleteConfirmBtn" disabled>Trajno izbriši</button>
+      </div>
+    `);
+    const input = document.getElementById('deleteConfirmInput');
+    const btn = document.getElementById('deleteConfirmBtn');
+    input.addEventListener('input', () => { btn.disabled = input.value.trim() !== name; });
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Brišem...';
+      try {
+        await authedFetch('/admin/restaurants/' + id, { method: 'DELETE' }, adminToken());
+        closeModal();
+        showToast(`Gostilna "${name}" je trajno izbrisana.`);
+        await Promise.all([loadAdminRestaurants(), loadAnalytics(), loadDashboard()]);
+      } catch (e) {
+        document.getElementById('deleteConfirmError').textContent = e.message;
+        btn.disabled = false;
+        btn.textContent = 'Trajno izbriši';
+      }
+    });
+  }
+  window.__confirmDeleteRestaurant = confirmDeleteRestaurant;
 
   // Opomnik na vrhu zavihka "Pregled" — gostilne, ki jim preizkusno obdobje poteče v naslednjih 7
   // dneh ali je že poteklo, da jih skrbnik ne spregleda med iskanjem po dolgem seznamu gostiln.
@@ -2646,6 +2726,8 @@
     try {
       await authedFetch('/admin/restaurants/' + id, { method: 'PATCH', body: { trial_dismissed: true } }, adminToken());
       await loadAdminRestaurants();
+      loadAnalytics();
+      loadDashboard();
       showToast('Gostilna označena kot redna (plačujoča) stranka.');
     } catch (e) { showToast(e.message); }
   }
@@ -2677,7 +2759,7 @@
 
   function toggleActive(id, aktivna) {
     authedFetch('/admin/restaurants/' + id, { method: 'PATCH', body: { aktivna } }, adminToken())
-      .then(() => loadAdminRestaurants())
+      .then(() => { loadAdminRestaurants().then(() => loadDashboard()); })
       .catch((e) => showToast(e.message));
   }
   window.__toggleActive = toggleActive;
@@ -2756,10 +2838,12 @@
     const a = adminAnalytics;
     const totalPromet = a.results.reduce((s, x) => s + x.promet, 0);
     const totalNarocila = a.results.reduce((s, x) => s + x.narocila, 0);
-    const unpaidCount = a.results.filter((x) => !x.placano).length;
+    // Gostilne v preizkusu so zastonj, zato jih ne štejemo med "neplačane" — nič ne dolgujejo.
+    const unpaidCount = a.results.filter((x) => !x.placano && !x.is_trial).length;
 
     document.getElementById('statRow').innerHTML = `
       <div class="stat-tile"><div class="stat-num">${eur(a.total_earning)}</div><div class="stat-label">Vaš zaslužek &middot; ${monthLabel(adminMonth)}</div></div>
+      <div class="stat-tile muted"><div class="stat-num">${eur(a.trial_earning)}</div><div class="stat-label">Zaslužek v preizkusu (informativno, ${a.trial_count})</div></div>
       <div class="stat-tile"><div class="stat-num">${eur(totalPromet)}</div><div class="stat-label">Skupni promet gostiln</div></div>
       <div class="stat-tile"><div class="stat-num">${totalNarocila}</div><div class="stat-label">Naročil v mesecu</div></div>
       <div class="stat-tile"><div class="stat-num">${unpaidCount}</div><div class="stat-label">Neplačanih gostiln</div></div>
@@ -2768,11 +2852,11 @@
     const sorted = a.results.slice().sort((x, y) => (adminSort.dir === 'desc' ? y[adminSort.field] - x[adminSort.field] : x[adminSort.field] - y[adminSort.field]));
     document.getElementById('monthlyTableBody').innerHTML = sorted.map((x) => `
       <tr>
-        <td>${esc(x.name)}</td>
+        <td>${esc(x.name)}${x.is_trial ? ' <span class="status-pill trial-ok" style="margin-left:6px;">Preizkus</span>' : ''}</td>
         <td>${eur(x.promet)}</td>
         <td>${x.narocila}</td>
-        <td>${eur(x.earning)}</td>
-        <td><span class="status-pill ${x.placano ? 'active' : 'warn'}">${x.placano ? 'Plačano' : 'Neplačano'}</span></td>
+        <td>${eur(x.earning)}${x.is_trial ? '<div class="sub" style="color:var(--admin-ink-soft); font-size:.74rem;">ne šteje v zaslužek</div>' : ''}</td>
+        <td><span class="status-pill ${x.placano ? 'active' : (x.is_trial ? 'trial-none' : 'warn')}">${x.placano ? 'Plačano' : (x.is_trial ? 'V preizkusu' : 'Neplačano')}</span></td>
         <td class="td-actions">
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__togglePaid('${x.restaurant_id}')">${x.placano ? 'Neplačano' : 'Plačano'}</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__printBilling('${x.restaurant_id}')">Natisni obračun</button>
@@ -2783,10 +2867,72 @@
 
   function togglePaid(restaurantId) {
     authedFetch('/admin/restaurants/' + restaurantId + '/toggle-paid?month=' + adminMonth, { method: 'POST' }, adminToken())
-      .then(() => loadAnalytics())
+      .then(() => { loadAnalytics(); loadDashboard(); })
       .catch((e) => showToast(e.message));
   }
   window.__togglePaid = togglePaid;
+
+  // ---------------- Pregled (nadzorna plošča): ključne številke + grafi ----------------
+  async function loadDashboard() {
+    try {
+      adminTrend = await authedFetch('/admin/analytics/trend?months=6', {}, adminToken());
+      renderDashboard();
+    } catch (e) { showToast(e.message); }
+  }
+
+  function renderDashboard() {
+    if (!adminTrend) return;
+    const months = adminTrend.months;
+    const current = months[months.length - 1];
+    const activeCount = adminRestaurants.filter((r) => r.aktivna).length;
+    const unpaidCount = adminAnalytics
+      ? adminAnalytics.results.filter((x) => !x.placano && !x.is_trial).length
+      : '—';
+
+    document.getElementById('dashStatRow').innerHTML = `
+      <div class="stat-tile"><div class="stat-num">${eur(current.total_earning)}</div><div class="stat-label">Redni zaslužek &middot; ${monthLabel(current.month)}</div></div>
+      <div class="stat-tile muted"><div class="stat-num">${eur(current.trial_earning)}</div><div class="stat-label">Zaslužek v preizkusu (informativno)</div></div>
+      <div class="stat-tile"><div class="stat-num">${activeCount}</div><div class="stat-label">Aktivnih gostiln</div></div>
+      <div class="stat-tile ${unpaidCount > 0 ? 'warn-tile' : ''}"><div class="stat-num">${unpaidCount}</div><div class="stat-label">Neplačanih gostiln &middot; ${monthLabel(adminMonth)}</div></div>
+    `;
+
+    renderTrendCharts(months);
+  }
+
+  function renderTrendCharts(months) {
+    if (typeof Chart === 'undefined') return; // Chart.js se morda še nalaga (počasna povezava) — brez grafov stran še vedno deluje
+    const labels = months.map((m) => monthLabel(m.month));
+    const earningCanvas = document.getElementById('chartEarning');
+    const ordersCanvas = document.getElementById('chartOrders');
+    if (!earningCanvas || !ordersCanvas) return;
+
+    const gridColor = 'rgba(241,231,216,.08)';
+    const tickColor = '#B7A995';
+    const commonScales = {
+      x: { grid: { color: gridColor }, ticks: { color: tickColor } },
+      y: { grid: { color: gridColor }, ticks: { color: tickColor }, beginAtZero: true }
+    };
+
+    if (chartEarningInstance) chartEarningInstance.destroy();
+    chartEarningInstance = new Chart(earningCanvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Redni zaslužek (€)', data: months.map((m) => Math.round(m.total_earning * 100) / 100), borderColor: '#E0AC5C', backgroundColor: 'rgba(224,172,92,.15)', tension: .3, fill: true },
+          { label: 'V preizkusu (€)', data: months.map((m) => Math.round(m.trial_earning * 100) / 100), borderColor: '#B7A995', backgroundColor: 'transparent', borderDash: [4, 4], tension: .3 }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { labels: { color: tickColor, font: { size: 11 } } } }, scales: commonScales }
+    });
+
+    if (chartOrdersInstance) chartOrdersInstance.destroy();
+    chartOrdersInstance = new Chart(ordersCanvas, {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Naročila', data: months.map((m) => m.narocila), backgroundColor: '#E0968D' }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: commonScales }
+    });
+  }
 
   // ---------------- tiskanje / PDF obračuna ----------------
   const SERVICE_DDV = 22; // DDV na strošek platforme (naročnina/provizija), enako kot na strežniku (business.js)

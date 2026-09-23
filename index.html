@@ -254,73 +254,118 @@
 
     <div id="adminAppWrap" style="display:none;">
       <div class="admin-shell">
-        <div class="logged-in-bar" style="background:var(--admin-panel); border-color:var(--admin-line);">
-          <div><span class="who" style="color:var(--admin-ink);" id="adminWhoName">—</span></div>
+        <nav class="admin-sidebar">
+          <div class="admin-sidebar-brand"><span class="brand-mark">M</span> Skrbnik</div>
+          <button class="admin-nav-btn active" data-atab="pregled" type="button">
+            <span class="admin-nav-icon">&#9679;</span> Pregled
+          </button>
+          <button class="admin-nav-btn" data-atab="gostilne" type="button">
+            <span class="admin-nav-icon">&#9733;</span> Gostilne
+          </button>
+          <button class="admin-nav-btn" data-atab="analitika" type="button">
+            <span class="admin-nav-icon">&#9776;</span> Analitika
+          </button>
+          <div class="admin-sidebar-spacer"></div>
+          <div class="admin-sidebar-user" id="adminWhoName">—</div>
           <button class="secondary-btn on-dark-btn" id="adminLogoutBtn">Odjava</button>
-        </div>
-        <h1>Nadzorna plošča</h1>
-        <div class="admin-subnav">
-          <button data-atab="pregled" class="active">Pregled</button>
-          <button data-atab="gostilne">Gostilne</button>
-        </div>
+        </nav>
 
-        <div class="atab active" id="atab-pregled">
-          <div class="month-select-row">
-            <div><h2 class="section-title">Mesečna analitika</h2><p class="section-sub">Promet, naročila in vaš zaslužek po gostilnah.</p></div>
-            <select class="select-input dark-input" id="monthSelect"></select>
-          </div>
-          <div id="trialReminderBox"></div>
-          <div class="stat-row" id="statRow"></div>
-          <div class="admin-panel-box">
-            <table class="admin-table">
-              <thead><tr><th>Gostilna</th><th>Promet</th><th>Naročila</th><th>Vaš zaslužek</th><th>Status</th><th></th></tr></thead>
-              <tbody id="monthlyTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="atab" id="atab-gostilne">
-          <div class="admin-toolbar-row">
-            <input class="text-input dark-input admin-search" id="adminSearchInput" placeholder="Išči gostilno ali kraj...">
-          </div>
-          <div class="admin-table-wrap">
-            <table class="admin-table">
-              <thead><tr><th>Ime</th><th>Kraj</th><th>E-pošta</th><th>Status</th><th>Preizkus</th><th>Obračun</th><th></th></tr></thead>
-              <tbody id="adminTableBody"></tbody>
-            </table>
+        <div class="admin-main">
+          <!-- ================= PREGLED (nadzorna plošča) ================= -->
+          <div class="atab active" id="atab-pregled">
+            <h1>Pregled</h1>
+            <div id="trialReminderBox"></div>
+            <div class="stat-row" id="dashStatRow"></div>
+            <div class="admin-chart-grid">
+              <div class="admin-panel-box">
+                <h3 class="chart-title">Zaslužek po mesecih</h3>
+                <canvas id="chartEarning" height="220"></canvas>
+              </div>
+              <div class="admin-panel-box">
+                <h3 class="chart-title">Naročila po mesecih</h3>
+                <canvas id="chartOrders" height="220"></canvas>
+              </div>
+            </div>
           </div>
 
-          <div class="add-form">
-            <h3>Dodaj novo gostilno</h3>
-            <p class="section-sub">Nastavite geslo sami in ga sporočite gostilni, ali pustite prazno, da ji Supabase pošlje povabilo po e-pošti.</p>
-            <form id="addRestaurantForm">
-              <div class="form-grid">
-                <div class="form-field"><label>Ime gostilne</label><input class="text-input dark-input" id="newName" required></div>
-                <div class="form-field"><label>Kraj</label><input class="text-input dark-input" id="newKraj" required list="siPlacesList"></div>
-                <div class="form-field"><label>Kuhinja</label><input class="text-input dark-input" id="newKuhinja" required></div>
-                <div class="form-field"><label>E-pošta lastnika</label><input class="text-input dark-input" type="email" id="newEmail" required></div>
-                <div class="form-field"><label>Geslo (neobvezno)</label><input class="text-input dark-input" type="text" id="newPassword" placeholder="Pustite prazno za povabilo po e-pošti"></div>
-                <div class="form-field"><label>Odpre</label><input class="text-input dark-input" type="time" id="newOd" value="09:00"></div>
-                <div class="form-field"><label>Zapre</label><input class="text-input dark-input" type="time" id="newDo" value="20:00"></div>
-                <div class="form-field"><label>Naročil na termin (max.)</label><input class="text-input dark-input" type="number" id="newMaxSlot" value="6"></div>
-                <div class="form-field"><label>Dni brezplačno</label><input class="text-input dark-input" type="number" id="newTrialDays" value="30" min="0"></div>
-              </div>
-              <hr class="form-sep">
-              <span class="fieldset-title">Obračunski model</span>
-              <div class="radio-row">
-                <label class="radio-item"><input type="radio" name="billingModel" value="najemnina" checked> Naročnina</label>
-                <label class="radio-item"><input type="radio" name="billingModel" value="provizija"> Provizija</label>
-                <label class="radio-item"><input type="radio" name="billingModel" value="oboje"> Oboje</label>
-              </div>
-              <div class="form-grid">
-                <div class="form-field"><label>Naročnina (€/mesec)</label><input class="text-input dark-input" type="number" id="newNajemnina" value="30"></div>
-                <div class="form-field"><label>Provizija (%)</label><input class="text-input dark-input" type="number" id="newProvizija" value="0"></div>
-              </div>
-              <div class="field-error" id="addRestaurantError"></div>
-              <div class="inline-form-actions">
-                <button class="secondary-btn on-dark-btn primary" type="submit">Dodaj gostilno in pošlji povabilo</button>
-              </div>
-            </form>
+          <!-- ================= GOSTILNE ================= -->
+          <div class="atab" id="atab-gostilne">
+            <h1>Gostilne</h1>
+            <div class="admin-toolbar-row">
+              <input class="text-input dark-input admin-search" id="adminSearchInput" placeholder="Išči gostilno ali kraj...">
+              <select class="select-input dark-input" id="adminStatusFilter">
+                <option value="">Vsi statusi</option>
+                <option value="aktivna">Aktivne</option>
+                <option value="neaktivna">Neaktivne</option>
+                <option value="preizkus">V preizkusu</option>
+                <option value="redna">Redne (plačujoče)</option>
+              </select>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th data-sort="name" class="sort-th">Ime &#8645;</th>
+                    <th data-sort="kraj" class="sort-th">Kraj &#8645;</th>
+                    <th>E-pošta</th>
+                    <th data-sort="aktivna" class="sort-th">Status &#8645;</th>
+                    <th>Preizkus</th>
+                    <th>Obračun</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="adminTableBody"></tbody>
+              </table>
+            </div>
+
+            <div class="add-form">
+              <h3>Dodaj novo gostilno</h3>
+              <p class="section-sub">Nastavite geslo sami in ga sporočite gostilni, ali pustite prazno, da ji Supabase pošlje povabilo po e-pošti.</p>
+              <form id="addRestaurantForm">
+                <div class="form-grid">
+                  <div class="form-field"><label>Ime gostilne</label><input class="text-input dark-input" id="newName" required></div>
+                  <div class="form-field"><label>Kraj</label><input class="text-input dark-input" id="newKraj" required list="siPlacesList"></div>
+                  <div class="form-field"><label>Kuhinja</label><input class="text-input dark-input" id="newKuhinja" required></div>
+                  <div class="form-field"><label>E-pošta lastnika</label><input class="text-input dark-input" type="email" id="newEmail" required></div>
+                  <div class="form-field"><label>Geslo (neobvezno)</label><input class="text-input dark-input" type="text" id="newPassword" placeholder="Pustite prazno za povabilo po e-pošti"></div>
+                  <div class="form-field"><label>Odpre</label><input class="text-input dark-input" type="time" id="newOd" value="09:00"></div>
+                  <div class="form-field"><label>Zapre</label><input class="text-input dark-input" type="time" id="newDo" value="20:00"></div>
+                  <div class="form-field"><label>Naročil na termin (max.)</label><input class="text-input dark-input" type="number" id="newMaxSlot" value="6"></div>
+                  <div class="form-field"><label>Dni brezplačno</label><input class="text-input dark-input" type="number" id="newTrialDays" value="30" min="0"></div>
+                </div>
+                <hr class="form-sep">
+                <span class="fieldset-title">Obračunski model</span>
+                <div class="radio-row">
+                  <label class="radio-item"><input type="radio" name="billingModel" value="najemnina" checked> Naročnina</label>
+                  <label class="radio-item"><input type="radio" name="billingModel" value="provizija"> Provizija</label>
+                  <label class="radio-item"><input type="radio" name="billingModel" value="oboje"> Oboje</label>
+                </div>
+                <div class="form-grid">
+                  <div class="form-field"><label>Naročnina (€/mesec)</label><input class="text-input dark-input" type="number" id="newNajemnina" value="30"></div>
+                  <div class="form-field"><label>Provizija (%)</label><input class="text-input dark-input" type="number" id="newProvizija" value="0"></div>
+                </div>
+                <div class="field-error" id="addRestaurantError"></div>
+                <div class="inline-form-actions">
+                  <button class="secondary-btn on-dark-btn primary" type="submit">Dodaj gostilno in pošlji povabilo</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- ================= ANALITIKA (mesečni obračun po gostilnah) ================= -->
+          <div class="atab" id="atab-analitika">
+            <h1>Analitika</h1>
+            <div class="month-select-row">
+              <div><h2 class="section-title">Mesečna analitika</h2><p class="section-sub">Promet, naročila in vaš zaslužek po gostilnah. Gostilne v preizkusu se ne štejejo v "Vaš zaslužek".</p></div>
+              <select class="select-input dark-input" id="monthSelect"></select>
+            </div>
+            <div class="stat-row" id="statRow"></div>
+            <div class="admin-panel-box">
+              <table class="admin-table">
+                <thead><tr><th>Gostilna</th><th>Promet</th><th>Naročila</th><th>Vaš zaslužek</th><th>Status</th><th></th></tr></thead>
+                <tbody id="monthlyTableBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -418,6 +463,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
