@@ -496,7 +496,7 @@
       <div class="r-card">
         <button class="card-btn-wrap" type="button" onclick="window.__openRestaurant('${r.id}')">
           <div class="r-card-img" style="${r.logo_url ? '' : `background:${heroGradient(r.name)};`}">
-            ${r.logo_url ? `<img src="${esc(r.logo_url)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : ''}
+            ${r.logo_url ? `<img src="${esc(r.logo_url)}" alt="" class="r-card-img-logo">` : ''}
           </div>
           <div class="r-card-body">
             <div class="r-card-name">${esc(r.name)}</div>
