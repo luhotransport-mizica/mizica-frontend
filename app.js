@@ -2311,8 +2311,12 @@
   }
   window.__deleteDiscountCode = deleteDiscountCode;
 
+  // Povezava za deljenje gre prek backenda (ne neposredno na frontend), da lahko Facebook/WhatsApp/
+  // Messenger ipd. ob deljenju prikažejo pravi predogled (ime gostilne, slika) — ti servisi namreč NE
+  // poganjajo JavaScripta, zato mora imeti stran že v surovem HTML-ju pravilne og:* oznake za TO gostilno.
+  // Backend jih vrne in nato pravega obiskovalca takoj preusmeri na dejansko stran gostilne.
   function shareLinkFor(restaurantId) {
-    return `${window.location.origin}${window.location.pathname}?r=${restaurantId}`;
+    return `${API.replace(/\/api$/, '')}/share/restaurant/${restaurantId}`;
   }
   function copyShareLink() {
     const input = document.getElementById('shareLinkInput');
@@ -2487,6 +2491,7 @@
         <td class="td-actions">
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openBillingModal('${r.id}')">Obračun</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openSetPasswordModal('${r.id}')">Nastavi geslo</button>
+          <button class="secondary-btn on-dark-btn" type="button" onclick="window.__copyRestaurantLink('${r.id}','${esc(r.name).replace(/'/g, "\\'")}')">Kopiraj povezavo</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__toggleActive('${r.id}',${!r.aktivna})">${r.aktivna ? 'Deaktiviraj' : 'Aktiviraj'}</button>
         </td>
       </tr>
@@ -2498,6 +2503,17 @@
     if (r.billing_model === 'provizija') return `Provizija ${r.provizija}%`;
     return `Naročnina ${eur(r.najemnina)}/mes.<div class="sub">+ provizija ${r.provizija}%</div>`;
   }
+
+  // Kopiranje javne povezave gostilne (npr. za pošiljanje novi gostilni po e-pošti/SMS-u) neposredno
+  // iz seznama gostiln v skrbniški plošči — brez odpiranja gostilnine nastavitve.
+  function copyRestaurantLink(id, name) {
+    navigator.clipboard.writeText(shareLinkFor(id)).then(() => {
+      showToast(`Povezava za "${name}" kopirana.`);
+    }).catch(() => {
+      showToast('Kopiranje ni uspelo.');
+    });
+  }
+  window.__copyRestaurantLink = copyRestaurantLink;
 
   function toggleActive(id, aktivna) {
     authedFetch('/admin/restaurants/' + id, { method: 'PATCH', body: { aktivna } }, adminToken())
@@ -2678,10 +2694,18 @@
     };
     if (!body.name || !body.kraj || !body.email) { errEl.textContent = 'Izpolnite ime, kraj in e-pošto.'; return; }
     try {
-      await authedFetch('/admin/restaurants', { method: 'POST', body }, adminToken());
+      const created = await authedFetch('/admin/restaurants', { method: 'POST', body }, adminToken());
       e.target.reset();
       showToast(body.password ? `Gostilna "${body.name}" dodana. Geslo sporočite gostilni sami.` : `Gostilna "${body.name}" dodana. Lastnik je prejel povabilo po e-pošti.`);
       await loadAdminRestaurants();
+      openModal(`
+        <h3>Gostilna "${esc(created.name)}" je dodana</h3>
+        <p class="section-sub" style="margin-bottom:8px;">To je njena javna povezava do ponudbe — kopirajte jo in jo pošljite gostilni.</p>
+        <div class="share-link-row">
+          <input class="text-input" style="flex:1;" type="text" readonly id="shareLinkInput" value="${esc(shareLinkFor(created.id))}">
+          <button class="secondary-btn" type="button" onclick="window.__copyShareLink()">Kopiraj povezavo</button>
+        </div>
+      `);
     } catch (err) {
       errEl.textContent = err.message;
     }
