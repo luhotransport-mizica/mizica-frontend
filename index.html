@@ -52,10 +52,42 @@
 
   <!-- ================= MARKET ================= -->
   <section class="view active" id="view-market">
-    <div class="market-head">
-      <span class="eyebrow" id="marketEyebrow">Brez provizije za plačila</span>
-      <h1 id="marketH1">Naročite pri lokalnih gostilnah</h1>
-      <p class="lede" id="marketLede">Plačilo vedno neposredno gostilni — z gotovino ali kartico ob prevzemu/dostavi. Mizica ne obdeluje plačil.</p>
+    <div class="hero-row">
+      <div class="market-head">
+        <span class="eyebrow" id="marketEyebrow">Brez provizije za plačila</span>
+        <h1 id="marketH1">Naročite pri lokalnih gostilnah</h1>
+        <p class="lede" id="marketLede">Plačilo vedno neposredno gostilni — z gotovino ali kartico ob prevzemu/dostavi. Mizica ne obdeluje plačil.</p>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <svg viewBox="0 0 320 300" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="160" cy="150" r="145" fill="var(--gold-soft)"/>
+          <circle cx="160" cy="150" r="145" fill="none" stroke="var(--accent-soft)" stroke-width="1.5" stroke-dasharray="2 8"/>
+          <!-- steam -->
+          <path d="M128 90 C120 78, 136 70, 128 58" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" opacity=".5"/>
+          <path d="M160 86 C152 74, 168 66, 160 54" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" opacity=".6"/>
+          <path d="M192 90 C184 78, 200 70, 192 58" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" opacity=".5"/>
+          <!-- plate -->
+          <ellipse cx="160" cy="188" rx="98" ry="34" fill="var(--bg-elev)" stroke="var(--line)" stroke-width="2"/>
+          <ellipse cx="160" cy="182" rx="76" ry="26" fill="var(--accent-soft)"/>
+          <ellipse cx="160" cy="182" rx="46" ry="16" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.5"/>
+          <!-- fork -->
+          <g transform="translate(46 150) rotate(-8)">
+            <rect x="-4" y="0" width="8" height="70" rx="4" fill="var(--accent)"/>
+            <path d="M-10 -22 L-10 4 L10 4 L10 -22 M-6 -22 L-6 0 M0 -22 L0 0 M6 -22 L6 0" stroke="var(--accent)" stroke-width="4" fill="none" stroke-linecap="round"/>
+          </g>
+          <!-- knife -->
+          <g transform="translate(274 150) rotate(8)">
+            <rect x="-4" y="10" width="8" height="60" rx="4" fill="var(--accent)"/>
+            <path d="M-6 10 C-10 -14, 10 -14, 6 10 Z" fill="var(--accent)"/>
+          </g>
+          <!-- location pin badge -->
+          <g transform="translate(232 62)">
+            <path d="M0 0 C-16 0 -28 12 -28 28 C-28 48 0 72 0 72 C0 72 28 48 28 28 C28 12 16 0 0 0 Z" fill="var(--accent)"/>
+            <circle cx="0" cy="27" r="13" fill="var(--accent-ink)"/>
+            <text x="0" y="33" text-anchor="middle" font-family="Fraunces, serif" font-weight="700" font-size="17" fill="var(--accent)">M</text>
+          </g>
+        </svg>
+      </div>
     </div>
 
     <div class="how-it-works">
