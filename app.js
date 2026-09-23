@@ -2564,11 +2564,18 @@
     return `Naročnina ${eur(r.najemnina)}/mes.<div class="sub">+ provizija ${r.provizija}%</div>`;
   }
 
-  // Kopiranje javne povezave gostilne (npr. za pošiljanje novi gostilni po e-pošti/SMS-u) neposredno
-  // iz seznama gostiln v skrbniški plošči — brez odpiranja gostilnine nastavitve.
+  // Povezava za PRIJAVO lastnika gostilne v svojo nadzorno ploščo (ne javna ponudba za stranke).
+  // Prijava je z e-pošto in geslom, zato je ta povezava enaka za vse gostilne — pove le brskalniku,
+  // naj pokaže zavihek "Za gostilne"; katera gostilna se prijavi, določijo šele vpisani podatki.
+  function ownerLoginLink() {
+    return `${window.location.origin}/?gostilna`;
+  }
+
+  // Kopiranje povezave za prijavo lastnika gostilne (npr. za pošiljanje novi gostilni po e-pošti/SMS-u)
+  // neposredno iz seznama gostiln v skrbniški plošči — brez odpiranja gostilnine nastavitve.
   function copyRestaurantLink(id, name) {
-    navigator.clipboard.writeText(shareLinkFor(id)).then(() => {
-      showToast(`Povezava za "${name}" kopirana.`);
+    navigator.clipboard.writeText(ownerLoginLink()).then(() => {
+      showToast(`Povezava za prijavo za "${name}" kopirana.`);
     }).catch(() => {
       showToast('Kopiranje ni uspelo.');
     });
@@ -2761,9 +2768,9 @@
       await loadAdminRestaurants();
       openModal(`
         <h3>Gostilna "${esc(created.name)}" je dodana</h3>
-        <p class="section-sub" style="margin-bottom:8px;">To je njena javna povezava do ponudbe — kopirajte jo in jo pošljite gostilni.</p>
+        <p class="section-sub" style="margin-bottom:8px;">To je povezava za prijavo v nadzorno ploščo (lastnik se prijavi s svojo e-pošto in geslom) — kopirajte jo in jo pošljite gostilni.</p>
         <div class="share-link-row">
-          <input class="text-input" style="flex:1;" type="text" readonly id="shareLinkInput" value="${esc(shareLinkFor(created.id))}">
+          <input class="text-input" style="flex:1;" type="text" readonly id="shareLinkInput" value="${esc(ownerLoginLink())}">
           <button class="secondary-btn" type="button" onclick="window.__copyShareLink()">Kopiraj povezavo</button>
         </div>
       `);
