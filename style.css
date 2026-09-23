@@ -406,3 +406,18 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .loyalty-overview-main{display:flex; flex-direction:column; gap:5px; min-width:0;}
 .loyalty-overview-name{font-weight:700; font-size:.92rem; color:var(--ink);}
 .loyalty-overview-tags{display:flex; flex-wrap:wrap; gap:6px;}
+
+/* ---------------- footer: kontakt / pravno ---------------- */
+.site-footer{border-top:1px solid var(--line); margin-top:50px; padding:26px 0 34px;}
+.footer-inner{max-width:1080px; margin:0 auto; padding-inline:20px;}
+.footer-tabs{display:flex; flex-wrap:wrap; gap:8px;}
+.footer-tab-btn{background:none; border:1px solid var(--line); color:var(--ink-soft); font-weight:600; font-size:.8rem; padding:7px 14px; border-radius:999px; transition:background .15s,color .15s,border-color .15s;}
+.footer-tab-btn:hover{color:var(--ink); border-color:var(--ink-soft);}
+.footer-tab-btn.active{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+.footer-panel{margin-top:18px; padding:18px 20px; background:var(--bg-elev); border:1px solid var(--line); border-radius:var(--radius-sm); max-height:340px; overflow-y:auto; font-size:.86rem; line-height:1.6; color:var(--ink-soft);}
+.footer-panel h3{color:var(--ink); font-size:1rem; margin-bottom:10px;}
+.footer-panel p{margin:0 0 10px;}
+.footer-panel p:last-child{margin-bottom:0;}
+.footer-panel ul{margin:0 0 10px; padding-left:20px;}
+.footer-panel strong{color:var(--ink);}
+.footer-copy{margin:20px 0 0; font-size:.76rem; color:var(--ink-soft);}

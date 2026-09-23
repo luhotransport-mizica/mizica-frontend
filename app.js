@@ -2600,6 +2600,23 @@
     list.innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
   }).catch(() => {});
 
+  // ---------------- footer: kontakt / pravno (zložljivi zavihki, privzeto zaprto) ----------------
+  document.querySelectorAll('.footer-tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const panel = document.getElementById(btn.dataset.ftarget);
+      const wasOpen = panel && panel.style.display !== 'none';
+      document.querySelectorAll('.footer-panel').forEach((p) => { p.style.display = 'none'; });
+      document.querySelectorAll('.footer-tab-btn').forEach((b) => b.classList.remove('active'));
+      if (panel && !wasOpen) {
+        panel.style.display = '';
+        btn.classList.add('active');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  });
+  const footerYearEl = document.getElementById('footerYear');
+  if (footerYearEl) footerYearEl.textContent = new Date().getFullYear();
+
   applyStaticI18n();
   loadMarket();
   if (shareRestaurantId) {
