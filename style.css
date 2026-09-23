@@ -157,6 +157,11 @@ main{padding-block:28px 60px;}
 .mi-stepper span{min-width:16px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums;}
 .pill-daily{font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; background:var(--gold-soft); color:var(--gold); padding:2px 7px; border-radius:999px;}
 .pill-daily.pill-stale{background:var(--red-soft); color:var(--red);}
+
+/* Zavihki za izbiro dneva znotraj skupine "Malica" (glej renderRestaurant / malica-day-tabs v app.js) */
+.malica-day-tabs{display:flex; gap:6px; background:var(--bg-sunken); padding:4px; border-radius:12px; margin-bottom:16px; overflow-x:auto;}
+.malica-day-tab{border:none; background:transparent; color:var(--ink-soft); font-weight:600; font-size:.82rem; padding:8px 14px; border-radius:9px; white-space:nowrap;}
+.malica-day-tab.active{background:var(--bg-elev); color:var(--ink); box-shadow:var(--shadow);}
 .mi-options-add{display:flex; align-items:center; gap:8px; flex-shrink:0;}
 .mi-in-cart{font-size:.72rem; font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:999px; padding:3px 9px;}
 .option-list{display:flex; flex-direction:column; gap:8px;}

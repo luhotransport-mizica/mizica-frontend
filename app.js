@@ -34,6 +34,7 @@
     market_nearby_note_prefix: { sl: 'Ni ujemanja po imenu — prikazujem gostilne v bližini', en: 'No name matches — showing restaurants near' },
     market_nearby_note_suffix: { sl: 'do', en: 'within' },
     malica_today_suffix: { sl: ' (danes)', en: ' (today)' },
+    malica_group_name: { sl: 'Malica', en: "Today's specials" },
     market_search_ph: { sl: 'Išči gostilno ali kraj...', en: 'Search restaurant or town...' },
     market_all_cuisine: { sl: 'Vsa kuhinja', en: 'All cuisines' },
     market_only_open: { sl: 'Samo odprto zdaj', en: 'Open now only' },
@@ -589,7 +590,8 @@
   // RESTAVRACIJA + KOŠARICA
   // =================================================================
   let currentRestaurant = null; // polni objekt iz GET /restaurants/:id
-  let selectedMenuCat = null; // id trenutno izbrane kategorije menija (null = prikaz kartic kategorij)
+  let selectedMenuCat = null; // id trenutno izbrane kategorije menija (null = prikaz kartic kategorij); '__malica__' = skupina malic (vsi dnevi)
+  let selectedMalicaDay = null; // id konkretne dnevne malica-kategorije, izbrane znotraj skupine "Malica"
   // cart.lines: { [lineKey]: { itemId, variantId, addonIds:[], qty } }
   // Jed brez izbrane velikosti/dodatkov ima lineKey enak kar itemId (nazaj združljivo s prejšnjim
   // preprostim modelom). Jed z izbrano velikostjo in/ali dodatki dobi svojo vrstico v košarici za
@@ -630,6 +632,7 @@
   async function openRestaurant(id) {
     goToView('restaurant');
     selectedMenuCat = null;
+    selectedMalicaDay = null;
     document.getElementById('restaurantContent').innerHTML = `<div class="loading-note">${uiLang === 'en' ? 'Loading restaurant...' : 'Nalagam gostilno...'}</div>`;
     try {
       currentRestaurant = customerToken()
@@ -663,6 +666,24 @@
     return `${n} ${n === 1 ? t('item_count_one') : t('item_count_many')}`;
   }
 
+  // "1 dan" / "2 dneva" / "3+ dni" — za kartico skupine "Malica", ki kaže, koliko dni je na voljo.
+  function daysLabel(n) {
+    if (uiLang === 'en') return `${n} ${n === 1 ? 'day' : 'days'}`;
+    if (n === 1) return '1 dan';
+    if (n === 2) return '2 dneva';
+    return `${n} dni`;
+  }
+
+  // Kratka oznaka za zavihek posameznega dneva znotraj skupine "Malica" (npr. "Danes", "Čet, 24.09.").
+  function malicaDayTabLabel(cat) {
+    if (!cat.malica_datum) return t('malica_group_name');
+    if (cat.malica_datum === todayStr()) return uiLang === 'en' ? 'Today' : 'Danes';
+    const d = new Date(cat.malica_datum + 'T00:00:00');
+    if (uiLang === 'en') return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    const days_sl = ['Ned', 'Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob'];
+    return `${days_sl[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`;
+  }
+
   function selectMenuCat(catId) {
     selectedMenuCat = catId;
     renderRestaurant();
@@ -670,8 +691,15 @@
   }
   window.__selectMenuCat = selectMenuCat;
 
+  function selectMalicaDay(catId) {
+    selectedMalicaDay = catId;
+    renderRestaurant();
+  }
+  window.__selectMalicaDay = selectMalicaDay;
+
   function backToMenuCats() {
     selectedMenuCat = null;
+    selectedMalicaDay = null;
     renderRestaurant();
   }
   window.__backToMenuCats = backToMenuCats;
@@ -680,47 +708,64 @@
     const r = currentRestaurant;
     if (!cart.type) cart.type = r.prevzem_enabled ? 'prevzem' : (r.dostava_enabled ? 'dostava' : null);
 
-    // Malica je vedno na vrhu ponudbe — stranka jo mora videti prvo, ne glede na vrstni red kategorij.
-    // Pretekli dnevi malice se ne prikažejo (isMalicaVisible), med malicami pa je vrstni red po datumu
-    // (danes prva, nato prihodnji dnevi), da stranke vidijo tudi že vnesene ponudbe za naprej.
-    const sortedMeni = (r.meni || [])
-      .filter(isMalicaVisible)
+    // Pretekli dnevi malice se ne prikažejo (isMalicaVisible). Vsi dnevi malice (danes + že vnesene
+    // prihodnje) se združijo v ENO kartico "Malica" v pregledu kategorij — znotraj nje stranka nato
+    // izbira med posameznimi dnevi prek zavihkov, namesto da bi imela vsak dan svojo kartico.
+    const visibleCats = (r.meni || []).filter(isMalicaVisible);
+    const malicaCats = visibleCats
+      .filter((c) => c.je_malica)
       .slice()
       .sort((a, b) => {
-        const am = a.je_malica ? 1 : 0, bm = b.je_malica ? 1 : 0;
-        if (am !== bm) return bm - am;
-        if (a.je_malica && b.je_malica && a.malica_datum && b.malica_datum) {
-          return a.malica_datum < b.malica_datum ? -1 : a.malica_datum > b.malica_datum ? 1 : 0;
-        }
+        if (a.malica_datum && b.malica_datum) return a.malica_datum < b.malica_datum ? -1 : a.malica_datum > b.malica_datum ? 1 : 0;
         return 0;
       });
+    const otherCats = visibleCats.filter((c) => !c.je_malica);
+    const malicaGroupCard = malicaCats.length ? {
+      id: '__malica__', je_malica: true, name: t('malica_group_name'), malica_group: true,
+    } : null;
+    const topList = malicaGroupCard ? [malicaGroupCard, ...otherCats] : otherCats;
 
     // En sam meni brez podkategorij ni smiselno prikazovati kot "izberite kategorijo" — pokažemo jedi kar naravnost.
-    const effectiveSelected = sortedMeni.length <= 1 ? (sortedMeni[0] ? sortedMeni[0].id : null) : selectedMenuCat;
+    const effectiveSelected = topList.length <= 1 ? (topList[0] ? topList[0].id : null) : selectedMenuCat;
 
     let menuHtml;
-    if (!sortedMeni.length) {
+    if (!topList.length) {
       menuHtml = `<p class="section-sub">${t('menu_not_ready')}</p>`;
     } else if (effectiveSelected == null) {
       menuHtml = `
         <div class="menu-cat-grid">
-          ${sortedMeni.map((cat) => `
+          ${topList.map((cat) => `
             <button type="button" class="menu-cat-card ${cat.je_malica ? 'menu-cat-card-malica' : ''}" onclick="window.__selectMenuCat('${cat.id}')">
               <span class="menu-cat-icon">${categoryIcon(cat)}</span>
               <span class="menu-cat-card-body">
                 <span class="menu-cat-card-name">${esc(cat.name)}</span>
-                <span class="menu-cat-card-count">${itemCountLabel((cat.menu_items || []).length)}</span>
-                ${catTimeLabel(cat, true) ? `<span class="menu-cat-card-tags">${catTimeLabel(cat, true)}</span>` : ''}
+                <span class="menu-cat-card-count">${cat.malica_group ? daysLabel(malicaCats.length) : itemCountLabel((cat.menu_items || []).length)}</span>
+                ${!cat.malica_group && catTimeLabel(cat, true) ? `<span class="menu-cat-card-tags">${catTimeLabel(cat, true)}</span>` : ''}
               </span>
               <span class="menu-cat-card-arrow">›</span>
             </button>
           `).join('')}
         </div>
       `;
-    } else {
-      const cat = sortedMeni.find((c) => c.id === effectiveSelected) || sortedMeni[0];
+    } else if (effectiveSelected === '__malica__') {
+      const dayCat = malicaCats.find((c) => c.id === selectedMalicaDay) || malicaCats[0];
+      selectedMalicaDay = dayCat.id;
       menuHtml = `
-        ${sortedMeni.length > 1 ? `<button type="button" class="back-link" onclick="window.__backToMenuCats()">${t('back_to_categories')}</button>` : ''}
+        ${topList.length > 1 ? `<button type="button" class="back-link" onclick="window.__backToMenuCats()">${t('back_to_categories')}</button>` : ''}
+        <div class="menu-cat">
+          ${malicaCats.length > 1 ? `
+            <div class="malica-day-tabs">
+              ${malicaCats.map((c) => `<button type="button" class="malica-day-tab ${c.id === dayCat.id ? 'active' : ''}" onclick="window.__selectMalicaDay('${c.id}')">${esc(malicaDayTabLabel(c))}</button>`).join('')}
+            </div>
+          ` : ''}
+          <h3>${esc(dayCat.name)} ${catTimeLabel(dayCat, true)}</h3>
+          ${(dayCat.menu_items || []).map((it) => renderMenuItemRow(it)).join('') || `<p class="section-sub">${t('no_items_in_cat')}</p>`}
+        </div>
+      `;
+    } else {
+      const cat = otherCats.find((c) => c.id === effectiveSelected) || otherCats[0];
+      menuHtml = `
+        ${topList.length > 1 ? `<button type="button" class="back-link" onclick="window.__backToMenuCats()">${t('back_to_categories')}</button>` : ''}
         <div class="menu-cat">
           <h3>${esc(cat.name)} ${catTimeLabel(cat, true)}</h3>
           ${(cat.menu_items || []).map((it) => renderMenuItemRow(it)).join('') || `<p class="section-sub">${t('no_items_in_cat')}</p>`}
