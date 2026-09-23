@@ -31,6 +31,8 @@
     how_it_works_2_text: { sl: 'Sestavi naročilo in izberi prevzem ali dostavo.', en: 'Build your order and choose pickup or delivery.' },
     how_it_works_3_title: { sl: 'Plačaj ob prevzemu', en: 'Pay on pickup' },
     how_it_works_3_text: { sl: 'Plačaš neposredno gostilni — z gotovino ali kartico.', en: "Pay the restaurant directly — cash or card." },
+    market_nearby_note_prefix: { sl: 'Ni ujemanja po imenu — prikazujem gostilne v bližini', en: 'No name matches — showing restaurants near' },
+    market_nearby_note_suffix: { sl: 'do', en: 'within' },
     market_search_ph: { sl: 'Išči gostilno ali kraj...', en: 'Search restaurant or town...' },
     market_all_cuisine: { sl: 'Vsa kuhinja', en: 'All cuisines' },
     market_only_open: { sl: 'Samo odprto zdaj', en: 'Open now only' },
@@ -437,6 +439,22 @@
     return 2 * R * Math.asin(Math.sqrt(s1));
   }
 
+  // Če iskanje po besedilu (ime/kraj gostilne) ne najde ničesar, poskusimo vpisano besedo geokodirati
+  // (morda je to kraj, ki ga nobena gostilna nima dobesedno zapisanega v naslovu, npr. "Dobova" blizu
+  // Brežic) in namesto tega pokažemo gostilne v bližini. Rezultate geokodiranja predpomnimo, da isto
+  // besedo ne poizvedujemo znova ob vsakem pritisku tipke.
+  let searchGeocodeCache = {};
+  let searchGeocodeSeq = 0;
+  async function geocodeSearchQuery(place) {
+    const key = normKraj(place);
+    if (!key) return null;
+    if (key in searchGeocodeCache) return searchGeocodeCache[key];
+    let geo = null;
+    try { geo = await apiFetch('/geocode?q=' + encodeURIComponent(place)); } catch (e) { geo = null; }
+    searchGeocodeCache[key] = geo;
+    return geo;
+  }
+
   function syncMyKrajFilterVisibility() {
     const myKraj = customerToken() ? (customerMeta().kraj || '').trim() : '';
     const wrap = document.getElementById('marketOnlyMyKrajWrap');
@@ -458,29 +476,20 @@
     return `<span class="r-rating"><span class="r-rating-stars">${starsHtml(r.avg_rating)}</span> ${r.avg_rating} <span class="r-rating-count">(${r.review_count})</span></span>`;
   }
 
-  function renderMarket() {
-    const q = (document.getElementById('marketSearch').value || '').toLowerCase().trim();
-    const kuhinja = document.getElementById('marketKuhinja').value;
-    const onlyOpen = document.getElementById('marketOnlyOpen').checked;
-    const meta = customerToken() ? customerMeta() : {};
-    const myKraj = customerToken() ? normKraj(meta.kraj) : '';
-    const myCoords = meta.lat != null && meta.lng != null ? { lat: meta.lat, lng: meta.lng } : null;
-    const onlyMyKraj = myKraj && document.getElementById('marketOnlyMyKraj').checked;
+  function marketOtherFiltersMatch(r, ctx) {
+    if (ctx.kuhinja && r.kuhinja !== ctx.kuhinja) return false;
+    if (ctx.onlyOpen && !r.odprto_zdaj) return false;
+    if (ctx.onlyMyKraj) {
+      const d = ctx.myCoords ? distanceKm(ctx.myCoords, { lat: r.lat, lng: r.lng }) : null;
+      // Če imamo koordinate za obe strani, filtriramo po razdalji (bolj natančno — zajame tudi
+      // sosednje vasi znotraj iste občine). Če geolociranje ni uspelo, se vrnemo na besedilo.
+      if (d != null) { if (d > NEARBY_RADIUS_KM) return false; }
+      else if (!normKraj(r.kraj).includes(ctx.myKraj)) return false;
+    }
+    return true;
+  }
 
-    const list = restaurants.filter((r) => {
-      if (q && !((r.name || '').toLowerCase().includes(q) || (r.kraj || '').toLowerCase().includes(q))) return false;
-      if (kuhinja && r.kuhinja !== kuhinja) return false;
-      if (onlyOpen && !r.odprto_zdaj) return false;
-      if (onlyMyKraj) {
-        const d = myCoords ? distanceKm(myCoords, { lat: r.lat, lng: r.lng }) : null;
-        // Če imamo koordinate za obe strani, filtriramo po razdalji (bolj natančno — zajame tudi
-        // sosednje vasi znotraj iste občine). Če geolociranje ni uspelo, se vrnemo na besedilo.
-        if (d != null) { if (d > NEARBY_RADIUS_KM) return false; }
-        else if (!normKraj(r.kraj).includes(myKraj)) return false;
-      }
-      return true;
-    });
-
+  function renderMarketGrid(list) {
     const grid = document.getElementById('marketGrid');
     document.getElementById('marketEmpty').style.display = list.length ? 'none' : 'block';
     grid.innerHTML = list.map((r) => `
@@ -499,6 +508,53 @@
         </button>
       </div>
     `).join('');
+  }
+
+  function renderMarket() {
+    const qRaw = (document.getElementById('marketSearch').value || '').trim();
+    const q = qRaw.toLowerCase();
+    const kuhinja = document.getElementById('marketKuhinja').value;
+    const onlyOpen = document.getElementById('marketOnlyOpen').checked;
+    const meta = customerToken() ? customerMeta() : {};
+    const myKraj = customerToken() ? normKraj(meta.kraj) : '';
+    const myCoords = meta.lat != null && meta.lng != null ? { lat: meta.lat, lng: meta.lng } : null;
+    const onlyMyKraj = myKraj && document.getElementById('marketOnlyMyKraj').checked;
+    const ctx = { kuhinja, onlyOpen, onlyMyKraj, myCoords, myKraj };
+    const nearbyNote = document.getElementById('marketNearbyNote');
+
+    const textMatches = restaurants.filter((r) => {
+      if (q && !((r.name || '').toLowerCase().includes(q) || (r.kraj || '').toLowerCase().includes(q))) return false;
+      return marketOtherFiltersMatch(r, ctx);
+    });
+
+    if (textMatches.length || !q) {
+      if (nearbyNote) nearbyNote.style.display = 'none';
+      renderMarketGrid(textMatches);
+      return;
+    }
+
+    // Iskana beseda se ne ujema z nobenim imenom/krajem gostilne — morda gre za kraj, ki ga nobena
+    // gostilna nima dobesedno zapisanega (npr. "Dobova" blizu Brežic). Poskusimo ga geokodirati in
+    // namesto praznega seznama pokazati gostilne v bližini tega kraja.
+    renderMarketGrid([]);
+    if (nearbyNote) nearbyNote.style.display = 'none';
+    const mySeq = ++searchGeocodeSeq;
+    geocodeSearchQuery(qRaw).then((geo) => {
+      if (mySeq !== searchGeocodeSeq) return; // uporabnik je medtem spremenil iskanje
+      if (!geo) return;
+      const nearby = restaurants
+        .filter((r) => marketOtherFiltersMatch(r, ctx))
+        .map((r) => ({ r, d: distanceKm(geo, { lat: r.lat, lng: r.lng }) }))
+        .filter((x) => x.d != null && x.d <= NEARBY_RADIUS_KM)
+        .sort((a, b) => a.d - b.d)
+        .map((x) => x.r);
+      if (!nearby.length) return;
+      if (nearbyNote) {
+        nearbyNote.textContent = `${t('market_nearby_note_prefix')} "${qRaw}" ${t('market_nearby_note_suffix')} ${NEARBY_RADIUS_KM} km.`;
+        nearbyNote.style.display = '';
+      }
+      renderMarketGrid(nearby);
+    });
   }
   document.getElementById('marketSearch').addEventListener('input', renderMarket);
   document.getElementById('marketKuhinja').addEventListener('change', renderMarket);
