@@ -313,6 +313,9 @@
           <button class="admin-nav-btn" data-atab="analitika" type="button">
             <span class="admin-nav-icon">&#9776;</span> Analitika
           </button>
+          <button class="admin-nav-btn" data-atab="popravki" type="button">
+            <span class="admin-nav-icon">&#9888;</span> Popravki <span class="otab-badge" id="adminCorrectionsTabBadge" style="display:none;"></span>
+          </button>
           <div class="admin-sidebar-spacer"></div>
           <div class="admin-sidebar-user" id="adminWhoName">—</div>
           <button class="secondary-btn on-dark-btn" id="adminLogoutBtn">Odjava</button>
@@ -359,6 +362,7 @@
                     <th data-sort="aktivna" class="sort-th">Status &#8645;</th>
                     <th>Preizkus</th>
                     <th>Obračun</th>
+                    <th>Preklici</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -412,6 +416,33 @@
               <table class="admin-table">
                 <thead><tr><th>Gostilna</th><th>Promet</th><th>Naročila</th><th>Vaš zaslužek</th><th>Status</th><th></th></tr></thead>
                 <tbody id="monthlyTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ================= POPRAVKI (zahtevki za popravek zaključenih naročil) ================= -->
+          <div class="atab" id="atab-popravki">
+            <h1>Popravki</h1>
+            <p class="section-sub">Ko je naročilo enkrat zaključeno (ročno ali samodejno), ga gostilna ne more več sama spremeniti — lahko le zaprosi za popravek. Tukaj jih odobrite ali zavrnete; po odobritvi po potrebi ročno popravite stanje naročila.</p>
+            <select class="select-input dark-input" id="correctionsStatusFilter" style="margin-bottom:12px;">
+              <option value="v_obravnavi">V obravnavi</option>
+              <option value="odobreno">Odobreni</option>
+              <option value="zavrnjeno">Zavrnjeni</option>
+              <option value="">Vsi</option>
+            </select>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Datum zahtevka</th>
+                    <th>Gostilna</th>
+                    <th>Naročilo</th>
+                    <th>Razlog</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="correctionsTableBody"></tbody>
               </table>
             </div>
           </div>
