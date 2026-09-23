@@ -188,45 +188,61 @@
         <div><span class="who" id="ownerWhoName">—</span><br><span class="who-sub" id="ownerWhoSub"></span></div>
         <button class="secondary-btn" id="ownerLogoutBtn">Odjava</button>
       </div>
-      <div class="owner-toolbar">
-        <div><h2 class="section-title">Naročila</h2><p class="section-sub">Sledite naročilom v realnem času.</p></div>
-        <div class="owner-toolbar-actions">
-          <button class="secondary-btn" type="button" onclick="window.__openExportModal()">Izvozi naročila (CSV)</button>
-          <button class="secondary-btn" id="ownerRefreshBtn">Osveži</button>
+
+      <div class="owner-subnav">
+        <button data-otab="narocila" class="active" type="button">Naročila <span class="otab-badge" id="ownerOrdersTabBadge" style="display:none;"></span></button>
+        <button data-otab="meni" type="button">Meni</button>
+        <button data-otab="nastavitve" type="button">Nastavitve</button>
+        <button data-otab="zvestoba" type="button">Zvestoba</button>
+      </div>
+
+      <div class="otab active" id="otab-narocila">
+        <div class="owner-toolbar">
+          <div><h2 class="section-title">Naročila</h2><p class="section-sub">Sledite naročilom v realnem času.</p></div>
+          <div class="owner-toolbar-actions">
+            <button class="secondary-btn" type="button" onclick="window.__openExportModal()">Izvozi naročila (CSV)</button>
+            <button class="secondary-btn" id="ownerRefreshBtn">Osveži</button>
+          </div>
+        </div>
+        <div class="board" id="ownerBoard"></div>
+
+        <div class="rejected-dropdown">
+          <button class="secondary-btn" type="button" id="rejectedToggleBtn">Zavrnjena/preklicana naročila (0) &#9662;</button>
+          <div id="rejectedPanel" style="display:none;"></div>
         </div>
       </div>
-      <div class="board" id="ownerBoard"></div>
 
-      <div class="rejected-dropdown">
-        <button class="secondary-btn" type="button" id="rejectedToggleBtn">Zavrnjena/preklicana naročila (0) &#9662;</button>
-        <div id="rejectedPanel" style="display:none;"></div>
-      </div>
-
-      <div class="panel">
-        <h2 class="section-title">Upravljanje menija</h2>
-        <p class="section-sub">Dodajte kategorije in jedi. Foto ni obvezna — vnesete lahko povezavo (URL) do slike.</p>
-        <div id="ownerMenu"></div>
-        <div class="add-cat-row">
-          <input class="text-input" id="newCatName" placeholder="Ime nove kategorije (npr. Malice)">
-          <input class="num-input" type="time" id="newCatFrom" title="Na voljo od (neobvezno)">
-          <input class="num-input" type="time" id="newCatTo" title="Na voljo do (neobvezno)">
-          <button class="secondary-btn" id="addCatBtn">Dodaj kategorijo</button>
+      <div class="otab" id="otab-meni">
+        <div class="panel">
+          <h2 class="section-title">Upravljanje menija</h2>
+          <p class="section-sub">Dodajte kategorije in jedi. Foto ni obvezna — vnesete lahko povezavo (URL) do slike.</p>
+          <div id="ownerMenu"></div>
+          <div class="add-cat-row">
+            <input class="text-input" id="newCatName" placeholder="Ime nove kategorije (npr. Malice)">
+            <input class="num-input" type="time" id="newCatFrom" title="Na voljo od (neobvezno)">
+            <input class="num-input" type="time" id="newCatTo" title="Na voljo do (neobvezno)">
+            <button class="secondary-btn" id="addCatBtn">Dodaj kategorijo</button>
+          </div>
+          <p class="section-sub" style="margin-top:6px;">Uro vnesite le, če je kategorija na voljo samo v določenem časovnem oknu (npr. malice od 11:00 do 14:00) — stranki bo prikazano poleg imena.</p>
+          <label class="chip-check" style="margin-top:8px;"><input type="checkbox" id="newCatMalica"> To je malica (dnevna ponudba z datumom)</label>
+          <input class="num-input" type="date" id="newCatDate" style="display:none; margin-top:8px;">
+          <p class="section-sub" id="newCatMalicaNote" style="display:none;">Datum vsak dan posodobite, ko vnesete novo malico — stranki se ob starem datumu prikaže opozorilo, da morda ni več aktualna.</p>
         </div>
-        <p class="section-sub" style="margin-top:6px;">Uro vnesite le, če je kategorija na voljo samo v določenem časovnem oknu (npr. malice od 11:00 do 14:00) — stranki bo prikazano poleg imena.</p>
-        <label class="chip-check" style="margin-top:8px;"><input type="checkbox" id="newCatMalica"> To je malica (dnevna ponudba z datumom)</label>
-        <input class="num-input" type="date" id="newCatDate" style="display:none; margin-top:8px;">
-        <p class="section-sub" id="newCatMalicaNote" style="display:none;">Datum vsak dan posodobite, ko vnesete novo malico — stranki se ob starem datumu prikaže opozorilo, da morda ni več aktualna.</p>
       </div>
 
-      <div class="panel">
-        <h2 class="section-title">Nastavitve</h2>
-        <div class="settings-grid" id="ownerSettings"></div>
+      <div class="otab" id="otab-nastavitve">
+        <div class="panel">
+          <h2 class="section-title">Nastavitve</h2>
+          <div class="settings-grid" id="ownerSettings"></div>
+        </div>
       </div>
 
-      <div class="panel">
-        <h2 class="section-title">Popusti in točke zvestobe</h2>
-        <p class="section-sub">Obe možnosti sta neobvezni — vklopite tisto, ki jo želite ponuditi.</p>
-        <div class="settings-grid" id="ownerLoyaltyPanel"></div>
+      <div class="otab" id="otab-zvestoba">
+        <div class="panel">
+          <h2 class="section-title">Popusti in točke zvestobe</h2>
+          <p class="section-sub">Obe možnosti sta neobvezni — vklopite tisto, ki jo želite ponuditi.</p>
+          <div class="settings-grid" id="ownerLoyaltyPanel"></div>
+        </div>
       </div>
     </div>
   </section>

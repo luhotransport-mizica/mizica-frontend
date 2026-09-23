@@ -206,6 +206,13 @@ textarea.text-input{resize:vertical; min-height:70px;}
 .logged-in-bar .who{font-weight:700;}
 .logged-in-bar .who-sub{font-size:.8rem; color:var(--ink-soft); font-weight:400;}
 
+.owner-subnav{display:flex; gap:6px; background:var(--bg-sunken); padding:4px; border-radius:12px; margin-bottom:22px; overflow-x:auto;}
+.owner-subnav button{border:none; background:transparent; color:var(--ink-soft); font-weight:600; font-size:.86rem; padding:9px 16px; border-radius:9px; white-space:nowrap; display:flex; align-items:center; gap:6px;}
+.owner-subnav button.active{background:var(--bg-elev); color:var(--ink); box-shadow:var(--shadow);}
+.otab-badge{background:var(--red); color:#fff; font-size:.68rem; font-weight:700; min-width:16px; height:16px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; padding:0 4px;}
+.otab{display:none;}
+.otab.active{display:block;}
+
 .owner-toolbar{display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:22px;}
 .owner-toolbar-actions{display:flex; gap:8px; flex-wrap:wrap;}
 .section-title{font-size:1.2rem; margin-bottom:4px;}

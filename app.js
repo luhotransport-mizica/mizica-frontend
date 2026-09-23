@@ -1452,6 +1452,14 @@
         if (session) { ownerSession = session; showOwnerApp(); }
         else { ownerSession = null; showOwnerLogin(); }
       });
+      document.querySelectorAll('.owner-subnav button').forEach((b) => {
+        b.addEventListener('click', () => {
+          document.querySelectorAll('.owner-subnav button').forEach((x) => x.classList.remove('active'));
+          document.querySelectorAll('.otab').forEach((x) => x.classList.remove('active'));
+          b.classList.add('active');
+          document.getElementById('otab-' + b.dataset.otab).classList.add('active');
+        });
+      });
     }
   }
 
@@ -1615,6 +1623,14 @@
     }).join('');
     renderRejectedDropdown();
     updateAlarmState();
+
+    // Značka na zavihku "Naročila" — da lastnik vidi nova naročila, tudi ko gleda Meni/Nastavitve.
+    const badge = document.getElementById('ownerOrdersTabBadge');
+    if (badge) {
+      const newCount = ownerOrders.filter((o) => o.status === 'novo').length;
+      badge.textContent = newCount;
+      badge.style.display = newCount ? '' : 'none';
+    }
   }
 
   // Zavrnjena/preklicana naročila niso ves čas na strani (samo se kopičijo) — na voljo so
