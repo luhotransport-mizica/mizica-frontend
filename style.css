@@ -148,6 +148,7 @@ main{padding-block:28px 60px;}
 .mi-price-row{display:flex; align-items:center; gap:8px; margin-top:2px;}
 .mi-price{color:var(--ink-soft); font-size:.86rem; font-variant-numeric:tabular-nums;}
 .mi-ddv{font-size:.68rem; color:var(--ink-soft); background:var(--bg-sunken); border-radius:999px; padding:1px 7px; font-weight:600;}
+.mi-description{font-size:.82rem; color:var(--ink-soft); margin-top:2px; line-height:1.35;}
 .mi-allergens{font-size:.72rem; color:var(--ink-soft); margin-top:3px;}
 .mi-unavailable .mi-name{color:var(--ink-soft); text-decoration:line-through; text-decoration-color:var(--line);}
 .mi-unavailable-label{font-size:.72rem; color:var(--red); font-weight:600;}

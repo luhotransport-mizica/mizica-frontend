@@ -830,6 +830,7 @@
           ${it.photo_url ? `<img class="mi-photo" src="${esc(it.photo_url)}" alt="">` : ''}
           <div>
             <div class="mi-name">${esc(it.name)} ${it.daily ? `<span class="pill-daily">${t('daily_pill')}</span>` : ''}</div>
+            ${it.description ? `<div class="mi-description">${esc(it.description)}</div>` : ''}
             <div class="mi-price-row"><span class="mi-price">${itemPriceLabel(it)}</span><span class="mi-ddv">DDV ${it.vat_rate}%</span></div>
             ${it.allergens ? `<div class="mi-allergens">${t('allergens_label')} ${esc(it.allergens)}</div>` : ''}
             ${unavailable ? `<div class="mi-unavailable-label">${t('unavailable_label')}</div>` : ''}
@@ -853,6 +854,7 @@
     const addons = it.menu_item_addons || [];
     openModal(`
       <h3>${esc(it.name)}</h3>
+      ${it.description ? `<div class="mi-description">${esc(it.description)}</div>` : ''}
       ${variants.length ? `
       <div class="field-group">
         <label class="field-label">${t('variant_size_label')}</label>
@@ -2193,6 +2195,9 @@
           </select>
         </div>
         <div class="field-group">
+          <input class="text-input" id="if-description-${opts.key}" placeholder="Sestavine / opis (neobvezno)" value="${esc(it.description || '')}">
+        </div>
+        <div class="field-group">
           <input class="text-input" id="if-allergens-${opts.key}" placeholder="Alergeni (neobvezno)" value="${esc(it.allergens || '')}">
         </div>
         <div class="field-group">
@@ -2267,6 +2272,7 @@
     const name = document.getElementById('if-name-' + key).value.trim();
     const price = document.getElementById('if-price-' + key).value;
     const vat_rate = document.getElementById('if-vat-' + key).value;
+    const description = document.getElementById('if-description-' + key).value.trim();
     const allergens = document.getElementById('if-allergens-' + key).value.trim();
     const photo_url = document.getElementById('if-photo-' + key).value.trim();
     const daily = document.getElementById('if-daily-' + key).checked;
@@ -2274,9 +2280,9 @@
     if (!name || isNaN(parseFloat(price))) { errEl.textContent = 'Vpišite ime in veljavno ceno.'; return; }
     try {
       if (itemId) {
-        await authedFetch('/owner/menu/items/' + itemId, { method: 'PATCH', body: { name, price, vat_rate, allergens, photo_url: photo_url || null, daily } }, ownerToken());
+        await authedFetch('/owner/menu/items/' + itemId, { method: 'PATCH', body: { name, price, vat_rate, description, allergens, photo_url: photo_url || null, daily } }, ownerToken());
       } else {
-        await authedFetch('/owner/menu/items', { method: 'POST', body: { category_id: categoryId, name, price, vat_rate, allergens, photo_url: photo_url || null, daily } }, ownerToken());
+        await authedFetch('/owner/menu/items', { method: 'POST', body: { category_id: categoryId, name, price, vat_rate, description, allergens, photo_url: photo_url || null, daily } }, ownerToken());
       }
       await loadOwnerData();
       showToast('Jed shranjena.');
