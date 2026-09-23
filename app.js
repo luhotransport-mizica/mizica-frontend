@@ -14,6 +14,226 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // ---------------- jezik (SI/EN) — samo stran za stranke; gostilna in skrbnik ostaneta v slovenščini ----------------
+  // Vsebina, ki jo vnesejo gostilne (imena, jedi, opisi, naslovi), se NE prevaja — prevaja se samo
+  // besedilo vmesnika. Znane napake s strežnika (v slovenščini) prevedemo prek ERR_MAP, če prevod obstaja.
+  let uiLang = localStorage.getItem('mizica_lang') || 'sl';
+  const I18N = {
+    nav_offer: { sl: 'Ponudba', en: 'Offer' },
+    nav_account: { sl: 'Moj račun', en: 'My account' },
+    market_eyebrow: { sl: 'Brez provizije za plačila', en: 'No commission on payments' },
+    market_h1: { sl: 'Naročite pri lokalnih gostilnah', en: 'Order from local restaurants' },
+    market_lede: { sl: 'Plačilo vedno neposredno gostilni — z gotovino ali kartico ob prevzemu/dostavi. Mizica ne obdeluje plačil.', en: 'Payment always goes directly to the restaurant — cash or card on pickup/delivery. Mizica does not process payments.' },
+    market_search_ph: { sl: 'Išči gostilno ali kraj...', en: 'Search restaurant or town...' },
+    market_all_cuisine: { sl: 'Vsa kuhinja', en: 'All cuisines' },
+    market_only_open: { sl: 'Samo odprto zdaj', en: 'Open now only' },
+    market_only_nearby: { sl: 'Samo v bližini (do 20 km)', en: 'Nearby only (within 20 km)' },
+    market_empty: { sl: 'Ni gostiln, ki bi ustrezale iskanju.', en: 'No restaurants match your search.' },
+    market_loading: { sl: 'Nalagam gostilne...', en: 'Loading restaurants...' },
+    back_to_market: { sl: '← Nazaj na ponudbo', en: '← Back to offer' },
+    open_now: { sl: 'Odprto zdaj', en: 'Open now' },
+    closed_now: { sl: 'Trenutno zaprto', en: 'Currently closed' },
+    pickup: { sl: 'Prevzem', en: 'Pickup' },
+    delivery: { sl: 'Dostava', en: 'Delivery' },
+    closed_banner: { sl: 'Gostilna trenutno ne sprejema naročil (zaprto ali izven delovnega časa).', en: 'This restaurant is not accepting orders right now (closed or outside opening hours).' },
+    no_items_in_cat: { sl: 'Ni jedi v tej kategoriji.', en: 'No items in this category.' },
+    menu_not_ready: { sl: 'Meni še ni na voljo.', en: 'Menu is not available yet.' },
+    back_to_categories: { sl: '← Nazaj na kategorije', en: '← Back to categories' },
+    choose_category: { sl: 'Izberite kategorijo', en: 'Choose a category' },
+    item_count_one: { sl: 'jed', en: 'item' },
+    item_count_many: { sl: 'jedi', en: 'items' },
+    reviews_title: { sl: 'Ocene', en: 'Reviews' },
+    no_reviews: { sl: 'Še ni ocen.', en: 'No reviews yet.' },
+    loyalty_collect: { sl: 'Zbirajte točke zvestobe', en: 'Earn loyalty points' },
+    loyalty_you_have: { sl: 'imate jih', en: 'you have' },
+    price_from: { sl: 'od ', en: 'from ' },
+    daily_pill: { sl: 'Dnevno', en: 'Daily' },
+    allergens_label: { sl: 'Alergeni:', en: 'Allergens:' },
+    unavailable_label: { sl: 'Trenutno ni na voljo', en: 'Currently unavailable' },
+    in_cart_label: { sl: 'V košarici:', en: 'In cart:' },
+    variant_size_label: { sl: 'Velikost', en: 'Size' },
+    addons_label: { sl: 'Dodatki', en: 'Add-ons' },
+    add_to_cart: { sl: 'Dodaj v košarico', en: 'Add to cart' },
+    added_to_cart: { sl: 'Dodano v košarico.', en: 'Added to cart.' },
+    open_maps: { sl: 'Odpri na zemljevidu', en: 'Open in maps' },
+    cart_title: { sl: 'Vaše naročilo', en: 'Your order' },
+    cart_empty: { sl: 'Košarica je prazna. Dodajte jedi iz menija.', en: 'Your cart is empty. Add items from the menu.' },
+    cart_delivery_fee: { sl: 'Strošek dostave', en: 'Delivery fee' },
+    cart_total: { sl: 'Skupaj', en: 'Total' },
+    cart_vat_note: { sl: 'Plačilo neposredno gostilni ob prevzemu/dostavi.<br>Mizica ne obdeluje plačil.', en: 'Payment goes directly to the restaurant on pickup/delivery.<br>Mizica does not process payments.' },
+    cart_discount_code_label: { sl: 'Koda za popust', en: 'Discount code' },
+    cart_discount_code_ph: { sl: 'Vpišite kodo', en: 'Enter code' },
+    cart_apply: { sl: 'Uporabi', en: 'Apply' },
+    cart_redeem_points_label: { sl: 'Unovči točke zvestobe (na voljo:', en: 'Redeem loyalty points (available:' },
+    cart_method_label: { sl: 'Način', en: 'Method' },
+    cart_delivery_address_label: { sl: 'Naslov za dostavo', en: 'Delivery address' },
+    cart_delivery_address_ph: { sl: 'Ulica in hišna št., pošta', en: 'Street and house no., postal town' },
+    cart_below_min: { sl: 'Za dostavo je potreben nakup najmanj', en: 'Minimum order for delivery is' },
+    cart_time_slot_label: { sl: 'Termin prevzema/dostave', en: 'Pickup/delivery time' },
+    cart_time_slot_ph: { sl: 'Izberite termin...', en: 'Choose a time...' },
+    cart_payment_label: { sl: 'Način plačila', en: 'Payment method' },
+    cart_name_label: { sl: 'Ime in priimek', en: 'Full name' },
+    cart_phone_label: { sl: 'Telefon', en: 'Phone' },
+    cart_place_order: { sl: 'Oddaj naročilo', en: 'Place order' },
+    cart_fab_label: { sl: 'Košarica', en: 'Cart' },
+    cart_placing_order: { sl: 'Oddajam...', en: 'Placing order...' },
+    cash: { sl: 'Gotovina', en: 'Cash' },
+    card: { sl: 'Kartica', en: 'Card' },
+    err_name: { sl: 'Vpišite ime in priimek.', en: 'Enter your full name.' },
+    err_phone: { sl: 'Vpišite telefonsko številko.', en: 'Enter your phone number.' },
+    err_timeslot: { sl: 'Izberite termin.', en: 'Choose a time slot.' },
+    err_address: { sl: 'Za dostavo vpišite naslov.', en: 'Enter an address for delivery.' },
+    err_payment: { sl: 'Izberite način plačila.', en: 'Choose a payment method.' },
+    err_cart_empty: { sl: 'Košarica je prazna.', en: 'Your cart is empty.' },
+    discount_applied: { sl: 'Koda uporabljena', en: 'Code applied' },
+    confirm_title: { sl: 'Naročilo oddano', en: 'Order placed' },
+    confirm_received: { sl: 'je prejela vaše naročilo.', en: 'has received your order.' },
+    confirm_discount: { sl: 'Popust', en: 'Discount' },
+    confirm_loyalty: { sl: 'Točke zvestobe', en: 'Loyalty points' },
+    confirm_total: { sl: 'Skupaj za plačilo', en: 'Total to pay' },
+    confirm_vat_prefix: { sl: 'Od tega DDV', en: 'Of which VAT' },
+    confirm_base: { sl: 'osnova', en: 'base' },
+    confirm_method: { sl: 'Način', en: 'Method' },
+    confirm_time: { sl: 'Termin', en: 'Time' },
+    confirm_payment: { sl: 'Plačilo', en: 'Payment' },
+    confirm_on_delivery: { sl: 'ob dostavi', en: 'on delivery' },
+    confirm_on_pickup: { sl: 'ob prevzemu', en: 'on pickup' },
+    confirm_pay_note: { sl: 'Plačilo poteka neposredno pri gostilni. Mizica ne obdeluje plačil.', en: 'Payment is made directly to the restaurant. Mizica does not process payments.' },
+    confirm_cancel_btn: { sl: 'Prekliči naročilo (še', en: 'Cancel order (still' },
+    confirm_cancelled: { sl: 'Naročilo je bilo preklicano/zavrnjeno.', en: 'The order was cancelled/rejected.' },
+    confirm_back: { sl: 'Nazaj na ponudbo', en: 'Back to offer' },
+    login_title: { sl: 'Prijava', en: 'Log in' },
+    login_sub: { sl: 'Prijavite se, da vidite zgodovino svojih naročil.', en: 'Log in to see your order history.' },
+    register_title: { sl: 'Registracija', en: 'Sign up' },
+    register_sub: { sl: 'Ustvarite račun — hitreje boste naročali in videli zgodovino naročil.', en: 'Create an account — order faster and see your order history.' },
+    to_register: { sl: 'Nimate računa? Registrirajte se', en: "Don't have an account? Sign up" },
+    to_login: { sl: 'Že imate račun? Prijavite se', en: 'Already have an account? Log in' },
+    field_email: { sl: 'E-pošta', en: 'Email' },
+    field_password: { sl: 'Geslo', en: 'Password' },
+    field_name: { sl: 'Ime in priimek', en: 'Full name' },
+    field_phone: { sl: 'Telefon', en: 'Phone' },
+    field_place: { sl: 'Kraj', en: 'Town' },
+    field_place_ph: { sl: 'npr. Brežice', en: 'e.g. Brežice' },
+    logout: { sl: 'Odjava', en: 'Log out' },
+    my_data: { sl: 'Moji podatki', en: 'My details' },
+    loyalty_panel_title: { sl: 'Točke zvestobe in kuponi', en: 'Loyalty points & coupons' },
+    loyalty_panel_sub: { sl: 'Pregled po gostilnah, kjer imate zbrane točke ali kjer je trenutno na voljo koda za popust.', en: 'Overview by restaurant — where you have points, or a discount code is currently available.' },
+    loyalty_none: { sl: 'Trenutno nimate zbranih točk ali dostopnih kod za popust pri nobeni gostilni.', en: "You don't have any points or available discount codes at any restaurant yet." },
+    loyalty_points_suffix: { sl: 'točk', en: 'points' },
+    loyalty_code_prefix: { sl: 'Koda', en: 'Code' },
+    my_orders: { sl: 'Moja naročila', en: 'My orders' },
+    my_orders_sub: { sl: 'Zgodovina in status vaših naročil pri vseh gostilnah.', en: 'History and status of your orders at all restaurants.' },
+    no_orders_yet: { sl: 'Še nimate naročil.', en: "You don't have any orders yet." },
+    order_discount: { sl: 'Popust:', en: 'Discount:' },
+    order_points_earned: { sl: 'Prislužene točke zvestobe:', en: 'Loyalty points earned:' },
+    rate_order: { sl: 'Ocenite naročilo', en: 'Rate order' },
+    rated: { sl: 'Ocenjeno', en: 'Rated' },
+    status_novo: { sl: 'Novo', en: 'New' },
+    status_priprava: { sl: 'V pripravi', en: 'Preparing' },
+    status_pripravljeno: { sl: 'Pripravljeno', en: 'Ready' },
+    status_prevzeto: { sl: 'Prevzeto/oddano', en: 'Picked up/delivered' },
+    status_zavrnjeno: { sl: 'Zavrnjeno/preklicano', en: 'Rejected/cancelled' },
+    nearby_title: { sl: 'Gostilne v bližini (do', en: 'Restaurants nearby (within' },
+    nearby_none: { sl: 'V bližini (do', en: 'Nearby (within' },
+    nearby_none_suffix: { sl: 'km) trenutno ni gostiln na Mizici.', en: 'km) there are currently no restaurants on Mizica.' },
+    review_modal_title: { sl: 'Ocenite naročilo', en: 'Rate your order' },
+    review_comment_label: { sl: 'Komentar (neobvezno)', en: 'Comment (optional)' },
+    cancel: { sl: 'Prekliči', en: 'Cancel' },
+    submit_review: { sl: 'Oddaj oceno', en: 'Submit rating' },
+    err_pick_rating: { sl: 'Izberite oceno (vsaj eno zvezdico).', en: 'Choose a rating (at least one star).' },
+    thanks_review: { sl: 'Hvala za oceno!', en: 'Thanks for your rating!' },
+    err_login_failed: { sl: 'Prijava ni uspela, poskusite znova.', en: 'Log in failed, please try again.' },
+    field_password_confirm: { sl: 'Ponovite geslo', en: 'Confirm password' }
+  };
+  function t(key) {
+    const entry = I18N[key];
+    if (!entry) return key;
+    return entry[uiLang] || entry.sl;
+  }
+  window.__t = t;
+  // Znana besedila napak s strežnika (slovensko) → angleški prevod, za prikaz strankam v EN načinu.
+  // Če prevoda ni v seznamu, prikažemo strežnikovo sporočilo kot je (slovensko) — bolje kot nič.
+  const ERR_MAP = {
+    'Manjkajo obvezni podatki naročila.': 'Missing required order details.',
+    'Naročilo nima nobenih postavk.': 'The order has no items.',
+    'Za dostavo je naslov obvezen.': 'An address is required for delivery.',
+    'Gostilna ne obstaja ali ni aktivna.': 'This restaurant does not exist or is not active.',
+    'Prevzem ni na voljo pri tej gostilni.': 'Pickup is not available at this restaurant.',
+    'Dostava ni na voljo pri tej gostilni.': 'Delivery is not available at this restaurant.',
+    'Ta termin je poln, izberite drugega.': 'This time slot is full, please choose another.',
+    'Koda za popust ni veljavna.': 'This discount code is not valid.',
+    'Koda za popust še ni veljavna.': 'This discount code is not active yet.',
+    'Koda za popust je potekla.': 'This discount code has expired.',
+    'Koda za popust je že izkoriščena.': 'This discount code has already been used up.',
+    'To kodo ste že izkoristili.': "You've already used this code.",
+    'Naročilo ne obstaja.': 'This order does not exist.',
+    'Naročilo lahko ocenite šele, ko je prevzeto/oddano.': 'You can only rate an order once it has been picked up/delivered.',
+    'To naročilo je že ocenjeno.': 'This order has already been rated.',
+    'Naročila v tem stanju ni več mogoče preklicati.': 'This order can no longer be cancelled.',
+    'Čas za preklic je potekel.': 'The cancellation window has passed.'
+  };
+  function trErr(msg) {
+    if (uiLang === 'en' && ERR_MAP[msg]) return ERR_MAP[msg];
+    return msg;
+  }
+
+  // Statično besedilo strani za stranke (naslovi, oznake polj, gumbi), ki ni izrisano dinamično iz JS —
+  // nastavimo ga ob zagonu in vsakič, ko stranka preklopi jezik.
+  function applyStaticI18n() {
+    const setText = (id, key) => { const el = document.getElementById(id); if (el) el.textContent = t(key); };
+    const setPh = (id, key) => { const el = document.getElementById(id); if (el) el.placeholder = t(key); };
+    setText('navMarketBtn', 'nav_offer');
+    setText('navAccountBtn', 'nav_account');
+    setText('marketEyebrow', 'market_eyebrow');
+    setText('marketH1', 'market_h1');
+    document.getElementById('marketLede').innerHTML = t('market_lede');
+    setPh('marketSearch', 'market_search_ph');
+    setText('marketOnlyOpenLbl', 'market_only_open');
+    setText('marketOnlyMyKrajLbl', 'market_only_nearby');
+    setText('marketEmpty', 'market_empty');
+    setText('marketLoading', 'market_loading');
+    document.getElementById('backToMarket').innerHTML = t('back_to_market');
+    const kuhinjaFirstOpt = document.querySelector('#marketKuhinja option[value=""]');
+    if (kuhinjaFirstOpt) kuhinjaFirstOpt.textContent = t('market_all_cuisine');
+    const accMode = typeof accountMode !== 'undefined' ? accountMode : 'login';
+    setText('accountFormTitle', accMode === 'login' ? 'login_title' : 'register_title');
+    setText('accountFormSub', accMode === 'login' ? 'login_sub' : 'register_sub');
+    setText('accountSubmitBtn', accMode === 'login' ? 'login_title' : 'register_title');
+    setText('accountToggleModeBtn', accMode === 'login' ? 'to_register' : 'to_login');
+    setText('accountEmailLbl', 'field_email');
+    setText('accountPasswordLbl', 'field_password');
+    setText('accountImeLbl', 'field_name');
+    setText('accountTelefonLbl', 'field_phone');
+    setText('accountKrajLbl', 'field_place');
+    setPh('accountKraj', 'field_place_ph');
+    setText('accountLogoutBtn', 'logout');
+    setText('cartFabLabel', 'cart_fab_label');
+    setText('accountDataTitle', 'my_data');
+    setText('accountLoyaltyTitle', 'loyalty_panel_title');
+    setText('accountLoyaltySub', 'loyalty_panel_sub');
+    setText('accountOrdersTitle', 'my_orders');
+    setText('accountOrdersSub', 'my_orders_sub');
+    const langBtn = document.getElementById('langToggleBtn');
+    if (langBtn) langBtn.textContent = uiLang === 'sl' ? 'EN' : 'SI';
+  }
+
+  function setUiLang(lang) {
+    uiLang = lang;
+    localStorage.setItem('mizica_lang', lang);
+    applyStaticI18n();
+    // Ponovno izrišemo trenutno dinamično vsebino, da se tudi ta prevede.
+    renderMarket();
+    if (currentRestaurant) renderRestaurant();
+    if (customerToken()) {
+      renderAccountProfile();
+      renderAccountNearby();
+      renderAccountOrders();
+      if (typeof lastLoyaltyOverview !== 'undefined' && lastLoyaltyOverview) renderAccountLoyaltyOverview(lastLoyaltyOverview);
+    }
+  }
+  let lastLoyaltyOverview = null;
+  document.getElementById('langToggleBtn').addEventListener('click', () => setUiLang(uiLang === 'sl' ? 'en' : 'sl'));
+
   let toastTimer = null;
   function showToast(msg) {
     const el = document.getElementById('toast');
@@ -158,7 +378,9 @@
       renderMarket();
       renderAccountNearby();
     } catch (e) {
-      document.getElementById('marketGrid').innerHTML = `<div class="error-note">Ne morem naložiti seznama gostiln (${esc(e.message)}). Backend se morda še zaganja — poskusite čez trenutek.</div>`;
+      document.getElementById('marketGrid').innerHTML = uiLang === 'en'
+        ? `<div class="error-note">Could not load the restaurant list (${esc(e.message)}). The backend may still be starting up — try again in a moment.</div>`
+        : `<div class="error-note">Ne morem naložiti seznama gostiln (${esc(e.message)}). Backend se morda še zaganja — poskusite čez trenutek.</div>`;
     } finally {
       document.getElementById('marketLoading').style.display = 'none';
     }
@@ -181,9 +403,9 @@
 
   function tagsForRestaurant(r) {
     const tags = [];
-    tags.push(r.odprto_zdaj ? '<span class="tag green">Odprto zdaj</span>' : '<span class="tag red">Trenutno zaprto</span>');
-    if (r.prevzem_enabled) tags.push('<span class="tag">Prevzem</span>');
-    if (r.dostava_enabled) tags.push('<span class="tag gold">Dostava</span>');
+    tags.push(r.odprto_zdaj ? `<span class="tag green">${t('open_now')}</span>` : `<span class="tag red">${t('closed_now')}</span>`);
+    if (r.prevzem_enabled) tags.push(`<span class="tag">${t('pickup')}</span>`);
+    if (r.dostava_enabled) tags.push(`<span class="tag gold">${t('delivery')}</span>`);
     return tags.join('');
   }
 
@@ -273,6 +495,7 @@
   // RESTAVRACIJA + KOŠARICA
   // =================================================================
   let currentRestaurant = null; // polni objekt iz GET /restaurants/:id
+  let selectedMenuCat = null; // id trenutno izbrane kategorije menija (null = prikaz kartic kategorij)
   // cart.lines: { [lineKey]: { itemId, variantId, addonIds:[], qty } }
   // Jed brez izbrane velikosti/dodatkov ima lineKey enak kar itemId (nazaj združljivo s prejšnjim
   // preprostim modelom). Jed z izbrano velikostjo in/ali dodatki dobi svojo vrstico v košarici za
@@ -312,7 +535,8 @@
 
   async function openRestaurant(id) {
     goToView('restaurant');
-    document.getElementById('restaurantContent').innerHTML = '<div class="loading-note">Nalagam gostilno...</div>';
+    selectedMenuCat = null;
+    document.getElementById('restaurantContent').innerHTML = `<div class="loading-note">${uiLang === 'en' ? 'Loading restaurant...' : 'Nalagam gostilno...'}</div>`;
     try {
       currentRestaurant = customerToken()
         ? await authedFetch('/restaurants/' + id, {}, customerToken())
@@ -320,10 +544,43 @@
       if (cart.restaurantId !== id) cart = { restaurantId: id, lines: {}, type: null, timeSlot: '', payment: '', discountCode: '', discountPercent: 0, redeemPoints: 0 };
       renderRestaurant();
     } catch (e) {
-      document.getElementById('restaurantContent').innerHTML = `<div class="error-note">Gostilne ni bilo mogoče naložiti (${esc(e.message)}).</div>`;
+      document.getElementById('restaurantContent').innerHTML = `<div class="error-note">${uiLang === 'en' ? 'Could not load this restaurant' : 'Gostilne ni bilo mogoče naložiti'} (${esc(trErr(e.message))}).</div>`;
     }
   }
   window.__openRestaurant = openRestaurant;
+
+  // Preprosta ugibalka ikone glede na ime kategorije, da je pregled kategorij bolj slikovit.
+  // Malica vedno dobi svojo (zvezdica), ker je časovno vezana in jo stranke iščejo prve.
+  function categoryIcon(cat) {
+    if (cat.je_malica) return '⭐';
+    const n = (cat.name || '').toLowerCase();
+    const map = [
+      [/pic[ce]|pizza/, '🍕'], [/solat/, '🥗'], [/juh/, '🍲'], [/testenin|pasta/, '🍝'],
+      [/burger|hamburger/, '🍔'], [/sendvič|sendvic|toast/, '🥪'], [/riba|morsk/, '🐟'],
+      [/meso|zrezek|piščanec|piscanec/, '🍗'], [/sladic|desert|torta/, '🍰'],
+      [/pijač|pijac|sok|napitek/, '🥤'], [/zajtrk/, '🍳'], [/kava|čaj|cafe/, '☕'],
+      [/vin[oe]|alkohol/, '🍷'], [/azij|sushi|wok/, '🍱'],
+    ];
+    for (const [re, icon] of map) if (re.test(n)) return icon;
+    return '🍽️';
+  }
+
+  function itemCountLabel(n) {
+    return `${n} ${n === 1 ? t('item_count_one') : t('item_count_many')}`;
+  }
+
+  function selectMenuCat(catId) {
+    selectedMenuCat = catId;
+    renderRestaurant();
+    document.getElementById('restaurantContent').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  window.__selectMenuCat = selectMenuCat;
+
+  function backToMenuCats() {
+    selectedMenuCat = null;
+    renderRestaurant();
+  }
+  window.__backToMenuCats = backToMenuCats;
 
   function renderRestaurant() {
     const r = currentRestaurant;
@@ -331,12 +588,39 @@
 
     // Malica je vedno na vrhu ponudbe — stranka jo mora videti prvo, ne glede na vrstni red kategorij.
     const sortedMeni = (r.meni || []).slice().sort((a, b) => (b.je_malica ? 1 : 0) - (a.je_malica ? 1 : 0));
-    const menuHtml = sortedMeni.map((cat) => `
-      <div class="menu-cat">
-        <h3>${esc(cat.name)} ${catTimeLabel(cat)}</h3>
-        ${(cat.menu_items || []).map((it) => renderMenuItemRow(it)).join('') || '<p class="section-sub">Ni jedi v tej kategoriji.</p>'}
-      </div>
-    `).join('') || '<p class="section-sub">Meni še ni na voljo.</p>';
+
+    // En sam meni brez podkategorij ni smiselno prikazovati kot "izberite kategorijo" — pokažemo jedi kar naravnost.
+    const effectiveSelected = sortedMeni.length <= 1 ? (sortedMeni[0] ? sortedMeni[0].id : null) : selectedMenuCat;
+
+    let menuHtml;
+    if (!sortedMeni.length) {
+      menuHtml = `<p class="section-sub">${t('menu_not_ready')}</p>`;
+    } else if (effectiveSelected == null) {
+      menuHtml = `
+        <div class="menu-cat-grid">
+          ${sortedMeni.map((cat) => `
+            <button type="button" class="menu-cat-card ${cat.je_malica ? 'menu-cat-card-malica' : ''}" onclick="window.__selectMenuCat('${cat.id}')">
+              <span class="menu-cat-icon">${categoryIcon(cat)}</span>
+              <span class="menu-cat-card-body">
+                <span class="menu-cat-card-name">${esc(cat.name)}</span>
+                <span class="menu-cat-card-count">${itemCountLabel((cat.menu_items || []).length)}</span>
+                ${catTimeLabel(cat, true) ? `<span class="menu-cat-card-tags">${catTimeLabel(cat, true)}</span>` : ''}
+              </span>
+              <span class="menu-cat-card-arrow">›</span>
+            </button>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      const cat = sortedMeni.find((c) => c.id === effectiveSelected) || sortedMeni[0];
+      menuHtml = `
+        ${sortedMeni.length > 1 ? `<button type="button" class="back-link" onclick="window.__backToMenuCats()">${t('back_to_categories')}</button>` : ''}
+        <div class="menu-cat">
+          <h3>${esc(cat.name)} ${catTimeLabel(cat, true)}</h3>
+          ${(cat.menu_items || []).map((it) => renderMenuItemRow(it)).join('') || `<p class="section-sub">${t('no_items_in_cat')}</p>`}
+        </div>
+      `;
+    }
 
     document.getElementById('restaurantContent').innerHTML = `
       <div class="rd-header">
@@ -347,13 +631,13 @@
               <h1>${esc(r.name)}</h1>
               <p class="r-card-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''} &middot; ${r.odpira_od ? r.odpira_od.slice(0,5) : ''}&ndash;${r.odpira_do ? r.odpira_do.slice(0,5) : ''}</p>
               ${ratingLabel(r) ? `<div class="r-card-rating">${ratingLabel(r)}</div>` : ''}
-              ${r.loyalty_enabled ? `<p class="loyalty-badge">&#9733; Zbirajte točke zvestobe${customerToken() ? ` &middot; imate jih ${r.loyalty_balance || 0}` : ''}</p>` : ''}
-              ${r.address ? `<p class="rd-address">${esc(r.address)}</p><a class="map-link-btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}">Odpri na zemljevidu</a>` : ''}
+              ${r.loyalty_enabled ? `<p class="loyalty-badge">&#9733; ${t('loyalty_collect')}${customerToken() ? ` &middot; ${t('loyalty_you_have')} ${r.loyalty_balance || 0}` : ''}</p>` : ''}
+              ${r.address ? `<p class="rd-address">${esc(r.address)}</p><a class="map-link-btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}">${t('open_maps')}</a>` : ''}
             </div>
           </div>
         </div>
       </div>
-      ${!r.odprto_zdaj ? '<div class="closed-banner">Gostilna trenutno ne sprejema naročil (zaprto ali izven delovnega časa).</div>' : ''}
+      ${!r.odprto_zdaj ? `<div class="closed-banner">${t('closed_banner')}</div>` : ''}
       <div class="rd-body">
         <div>${menuHtml}${renderReviewsSection(r)}</div>
         <div class="cart-panel" id="cartPanel"></div>
@@ -366,13 +650,13 @@
     const reviews = r.reviews || [];
     return `
       <div class="reviews-section">
-        <h3>Ocene ${r.review_count ? `<span class="r-rating"><span class="r-rating-stars">${starsHtml(r.avg_rating)}</span> ${r.avg_rating} <span class="r-rating-count">(${r.review_count})</span></span>` : ''}</h3>
+        <h3>${t('reviews_title')} ${r.review_count ? `<span class="r-rating"><span class="r-rating-stars">${starsHtml(r.avg_rating)}</span> ${r.avg_rating} <span class="r-rating-count">(${r.review_count})</span></span>` : ''}</h3>
         ${reviews.length ? reviews.map((rv) => `
           <div class="review-row">
-            <div class="review-row-top"><span class="review-stars">${starsHtml(rv.rating)}</span><span class="review-name">${esc(rv.customer_name || 'Stranka')}</span><span class="review-date">${new Date(rv.created_at).toLocaleDateString('sl-SI')}</span></div>
+            <div class="review-row-top"><span class="review-stars">${starsHtml(rv.rating)}</span><span class="review-name">${esc(rv.customer_name || 'Stranka')}</span><span class="review-date">${new Date(rv.created_at).toLocaleDateString(uiLang === 'en' ? 'en-GB' : 'sl-SI')}</span></div>
             ${rv.comment ? `<p class="review-comment">${esc(rv.comment)}</p>` : ''}
           </div>
-        `).join('') : '<p class="section-sub">Še ni ocen.</p>'}
+        `).join('') : `<p class="section-sub">${t('no_reviews')}</p>`}
       </div>
     `;
   }
@@ -381,7 +665,7 @@
     const variants = it.menu_item_variants || [];
     if (!variants.length) return eur(it.price);
     const min = Math.min(...variants.map((v) => Number(v.price)));
-    return 'od ' + eur(min);
+    return t('price_from') + eur(min);
   }
 
   function renderMenuItemRow(it) {
@@ -394,14 +678,14 @@
         <div class="mi-row-inner">
           ${it.photo_url ? `<img class="mi-photo" src="${esc(it.photo_url)}" alt="">` : ''}
           <div>
-            <div class="mi-name">${esc(it.name)} ${it.daily ? '<span class="pill-daily">Dnevno</span>' : ''}</div>
+            <div class="mi-name">${esc(it.name)} ${it.daily ? `<span class="pill-daily">${t('daily_pill')}</span>` : ''}</div>
             <div class="mi-price-row"><span class="mi-price">${itemPriceLabel(it)}</span><span class="mi-ddv">DDV ${it.vat_rate}%</span></div>
-            ${it.allergens ? `<div class="mi-allergens">Alergeni: ${esc(it.allergens)}</div>` : ''}
-            ${unavailable ? '<div class="mi-unavailable-label">Trenutno ni na voljo</div>' : ''}
+            ${it.allergens ? `<div class="mi-allergens">${t('allergens_label')} ${esc(it.allergens)}</div>` : ''}
+            ${unavailable ? `<div class="mi-unavailable-label">${t('unavailable_label')}</div>` : ''}
           </div>
         </div>
         ${unavailable ? '' : (hasOptions
-          ? `<div class="mi-options-add">${totalQty > 0 ? `<span class="mi-in-cart">V košarici: ${totalQty}</span>` : ''}<button class="mi-add" type="button" onclick="window.__openItemOptionsModal('${it.id}')">+</button></div>`
+          ? `<div class="mi-options-add">${totalQty > 0 ? `<span class="mi-in-cart">${t('in_cart_label')} ${totalQty}</span>` : ''}<button class="mi-add" type="button" onclick="window.__openItemOptionsModal('${it.id}')">+</button></div>`
           : (qty > 0
             ? `<div class="mi-stepper"><button type="button" onclick="window.__changeQty('${it.id}',-1)">&minus;</button><span>${qty}</span><button type="button" onclick="window.__changeQty('${it.id}',1)">+</button></div>`
             : `<button class="mi-add" type="button" onclick="window.__changeQty('${it.id}',1)">+</button>`))}
@@ -420,21 +704,21 @@
       <h3>${esc(it.name)}</h3>
       ${variants.length ? `
       <div class="field-group">
-        <label class="field-label">Velikost</label>
+        <label class="field-label">${t('variant_size_label')}</label>
         <div class="option-list">
           ${variants.map((v, i) => `<label class="chip-check"><input type="radio" name="optVariant" value="${v.id}" ${i === 0 ? 'checked' : ''}> ${esc(v.name)} — ${eur(v.price)}</label>`).join('')}
         </div>
       </div>` : ''}
       ${addons.length ? `
       <div class="field-group">
-        <label class="field-label">Dodatki</label>
+        <label class="field-label">${t('addons_label')}</label>
         <div class="option-list">
           ${addons.map((a) => `<label class="chip-check"><input type="checkbox" name="optAddon" value="${a.id}"> ${esc(a.name)} (+${eur(a.price)})</label>`).join('')}
         </div>
       </div>` : ''}
       <div class="modal-close-row">
-        <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
-        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__confirmAddToCart('${itemId}')">Dodaj v košarico</button>
+        <button class="secondary-btn" type="button" onclick="closeModal()">${t('cancel')}</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__confirmAddToCart('${itemId}')">${t('add_to_cart')}</button>
       </div>
     `);
   }
@@ -449,7 +733,7 @@
     else cart.lines[key] = { itemId, variantId, addonIds, qty: 1 };
     closeModal();
     renderRestaurant();
-    showToast('Dodano v košarico.');
+    showToast(t('added_to_cart'));
   }
   window.__confirmAddToCart = confirmAddToCart;
 
@@ -487,7 +771,7 @@
     document.getElementById('cartFab').classList.toggle('show', cartCount() > 0);
 
     if (!lines.length) {
-      panel.innerHTML = '<h3>Vaše naročilo</h3><p class="cart-empty">Košarica je prazna. Dodajte jedi iz menija.</p>';
+      panel.innerHTML = `<h3>${t('cart_title')}</h3><p class="cart-empty">${t('cart_empty')}</p>`;
       return;
     }
 
@@ -507,18 +791,18 @@
 
     const paymentOptions = [];
     if (cart.type === 'prevzem') {
-      if (r.prevzem_gotovina) paymentOptions.push(['gotovina', 'Gotovina']);
-      if (r.prevzem_kartica) paymentOptions.push(['kartica', 'Kartica']);
+      if (r.prevzem_gotovina) paymentOptions.push(['gotovina', t('cash')]);
+      if (r.prevzem_kartica) paymentOptions.push(['kartica', t('card')]);
     } else if (cart.type === 'dostava') {
-      if (r.dostava_gotovina) paymentOptions.push(['gotovina', 'Gotovina']);
-      if (r.dostava_kartica) paymentOptions.push(['kartica', 'Kartica']);
+      if (r.dostava_gotovina) paymentOptions.push(['gotovina', t('cash')]);
+      if (r.dostava_kartica) paymentOptions.push(['kartica', t('card')]);
     }
     if (!paymentOptions.find(([v]) => v === cart.payment)) cart.payment = paymentOptions[0] ? paymentOptions[0][0] : '';
 
     const slots = r.prosti_termini || [];
 
     panel.innerHTML = `
-      <h3>Vaše naročilo</h3>
+      <h3>${t('cart_title')}</h3>
       ${lines.map((l) => `
         <div class="cart-line">
           <span class="name">
@@ -529,69 +813,69 @@
           <span>${eur(l.price * l.qty)}</span>
         </div>
       `).join('')}
-      ${codeDiscount > 0 ? `<div class="cart-sub cart-discount-row"><span>Popust (${esc(cart.discountCode)}, -${cart.discountPercent}%)</span><span>&minus;${eur(codeDiscount)}</span></div>` : ''}
-      ${pointsDiscount > 0 ? `<div class="cart-sub cart-discount-row"><span>Točke zvestobe (${cart.redeemPoints})</span><span>&minus;${eur(pointsDiscount)}</span></div>` : ''}
-      ${deliveryFee ? `<div class="cart-sub"><span>Strošek dostave</span><span>${eur(deliveryFee)}</span></div>` : ''}
-      <div class="cart-total"><span>Skupaj</span><span>${eur(total)}</span></div>
-      <div class="cart-vat-note">Plačilo neposredno gostilni ob prevzemu/dostavi.<br>Mizica ne obdeluje plačil.</div>
+      ${codeDiscount > 0 ? `<div class="cart-sub cart-discount-row"><span>${t('confirm_discount')} (${esc(cart.discountCode)}, -${cart.discountPercent}%)</span><span>&minus;${eur(codeDiscount)}</span></div>` : ''}
+      ${pointsDiscount > 0 ? `<div class="cart-sub cart-discount-row"><span>${t('confirm_loyalty')} (${cart.redeemPoints})</span><span>&minus;${eur(pointsDiscount)}</span></div>` : ''}
+      ${deliveryFee ? `<div class="cart-sub"><span>${t('cart_delivery_fee')}</span><span>${eur(deliveryFee)}</span></div>` : ''}
+      <div class="cart-total"><span>${t('cart_total')}</span><span>${eur(total)}</span></div>
+      <div class="cart-vat-note">${t('cart_vat_note')}</div>
 
       <div class="field-group">
-        <label class="field-label">Koda za popust</label>
+        <label class="field-label">${t('cart_discount_code_label')}</label>
         <div class="discount-apply-row">
-          <input class="text-input" id="cartDiscountCode" placeholder="Vpišite kodo" style="text-transform:uppercase;" value="${esc(cart.discountCode || '')}">
-          <button class="secondary-btn" type="button" id="applyDiscountBtn">Uporabi</button>
+          <input class="text-input" id="cartDiscountCode" placeholder="${t('cart_discount_code_ph')}" style="text-transform:uppercase;" value="${esc(cart.discountCode || '')}">
+          <button class="secondary-btn" type="button" id="applyDiscountBtn">${t('cart_apply')}</button>
         </div>
         <div class="field-error" id="cartDiscountError"></div>
       </div>
 
       ${(r.loyalty_enabled && (r.loyalty_balance || 0) > 0) ? `
       <div class="field-group">
-        <label class="field-label">Unovči točke zvestobe (na voljo: ${r.loyalty_balance})</label>
+        <label class="field-label">${t('cart_redeem_points_label')} ${r.loyalty_balance})</label>
         <input class="num-input" id="cartRedeemPoints" type="number" min="0" max="${maxRedeemable}" value="${cart.redeemPoints || 0}" style="width:120px;">
       </div>` : ''}
 
       ${typeChoices.length > 1 ? `
       <div class="field-group">
-        <label class="field-label">Način</label>
+        <label class="field-label">${t('cart_method_label')}</label>
         <div class="choice-row">
-          ${typeChoices.map((t) => `<button type="button" class="choice-btn ${cart.type === t ? 'selected' : ''}" onclick="window.__setCartType('${t}')">${t === 'prevzem' ? 'Prevzem' : 'Dostava'}</button>`).join('')}
+          ${typeChoices.map((tc) => `<button type="button" class="choice-btn ${cart.type === tc ? 'selected' : ''}" onclick="window.__setCartType('${tc}')">${tc === 'prevzem' ? t('pickup') : t('delivery')}</button>`).join('')}
         </div>
       </div>` : ''}
 
       ${cart.type === 'dostava' ? `
       <div class="field-group">
-        <label class="field-label">Naslov za dostavo</label>
-        <input class="text-input" id="cartAddress" placeholder="Ulica in hišna št., pošta" value="${esc(cart.address || '')}">
-        ${belowMin ? `<p class="warn-note">Za dostavo je potreben nakup najmanj ${eur(r.dostava_min_znesek)}.</p>` : ''}
+        <label class="field-label">${t('cart_delivery_address_label')}</label>
+        <input class="text-input" id="cartAddress" placeholder="${t('cart_delivery_address_ph')}" value="${esc(cart.address || '')}">
+        ${belowMin ? `<p class="warn-note">${t('cart_below_min')} ${eur(r.dostava_min_znesek)}.</p>` : ''}
       </div>` : ''}
 
       <div class="field-group">
-        <label class="field-label">Termin prevzema/dostave</label>
+        <label class="field-label">${t('cart_time_slot_label')}</label>
         <select class="select-input" id="cartTimeSlot">
-          <option value="">Izberite termin...</option>
+          <option value="">${t('cart_time_slot_ph')}</option>
           ${slots.map((s) => `<option value="${s}" ${cart.timeSlot === s ? 'selected' : ''}>${s}</option>`).join('')}
         </select>
       </div>
 
       ${paymentOptions.length > 1 ? `
       <div class="field-group">
-        <label class="field-label">Način plačila</label>
+        <label class="field-label">${t('cart_payment_label')}</label>
         <div class="choice-row">
           ${paymentOptions.map(([v, label]) => `<button type="button" class="choice-btn ${cart.payment === v ? 'selected' : ''}" onclick="window.__setCartPayment('${v}')">${label}</button>`).join('')}
         </div>
       </div>` : ''}
 
       <div class="field-group">
-        <label class="field-label">Ime in priimek</label>
+        <label class="field-label">${t('cart_name_label')}</label>
         <input class="text-input" id="cartName" value="${esc(cart.customerName || (customerToken() ? (customerMeta().ime || '') : ''))}">
       </div>
       <div class="field-group">
-        <label class="field-label">Telefon</label>
+        <label class="field-label">${t('cart_phone_label')}</label>
         <input class="text-input" id="cartPhone" type="tel" value="${esc(cart.phone || (customerToken() ? (customerMeta().telefon || '') : ''))}">
       </div>
 
       <div class="field-error" id="cartError"></div>
-      <button class="primary-btn" type="button" id="placeOrderBtn" ${!r.odprto_zdaj ? 'disabled' : ''}>Oddaj naročilo</button>
+      <button class="primary-btn" type="button" id="placeOrderBtn" ${!r.odprto_zdaj ? 'disabled' : ''}>${t('cart_place_order')}</button>
     `;
 
     document.getElementById('placeOrderBtn').addEventListener('click', placeOrder);
@@ -616,10 +900,10 @@
       cart.discountCode = code;
       cart.discountPercent = q.percent;
       renderCartPanel();
-      showToast(`Koda uporabljena: -${q.percent}%`);
+      showToast(`${t('discount_applied')}: -${q.percent}%`);
     } catch (e) {
       cart.discountCode = ''; cart.discountPercent = 0;
-      errEl.textContent = e.message;
+      errEl.textContent = trErr(e.message);
     }
   }
 
@@ -638,17 +922,17 @@
     const address = addressEl ? addressEl.value.trim() : '';
     cart.customerName = name; cart.phone = phone; cart.timeSlot = timeSlot; cart.address = address;
 
-    if (!name) return (errEl.textContent = 'Vpišite ime in priimek.');
-    if (!phone) return (errEl.textContent = 'Vpišite telefonsko številko.');
-    if (!timeSlot) return (errEl.textContent = 'Izberite termin.');
-    if (cart.type === 'dostava' && !address) return (errEl.textContent = 'Za dostavo vpišite naslov.');
-    if (!cart.payment) return (errEl.textContent = 'Izberite način plačila.');
+    if (!name) return (errEl.textContent = t('err_name'));
+    if (!phone) return (errEl.textContent = t('err_phone'));
+    if (!timeSlot) return (errEl.textContent = t('err_timeslot'));
+    if (cart.type === 'dostava' && !address) return (errEl.textContent = t('err_address'));
+    if (!cart.payment) return (errEl.textContent = t('err_payment'));
 
     const items = Object.values(cart.lines).map((l) => ({ item_id: l.itemId, qty: l.qty, variant_id: l.variantId || undefined, addon_ids: l.addonIds && l.addonIds.length ? l.addonIds : undefined }));
-    if (!items.length) return (errEl.textContent = 'Košarica je prazna.');
+    if (!items.length) return (errEl.textContent = t('err_cart_empty'));
 
     const btn = document.getElementById('placeOrderBtn');
-    btn.disabled = true; btn.textContent = 'Oddajam...';
+    btn.disabled = true; btn.textContent = t('cart_placing_order');
     try {
       const orderBody = {
         restaurant_id: currentRestaurant.id, customer_name: name, phone,
@@ -676,8 +960,8 @@
       renderConfirm(result.order, result.vat, currentRestaurant.name);
       goToView('confirm');
     } catch (e) {
-      errEl.textContent = e.message;
-      btn.disabled = false; btn.textContent = 'Oddaj naročilo';
+      errEl.textContent = trErr(e.message);
+      btn.disabled = false; btn.textContent = t('cart_place_order');
     }
   }
 
@@ -699,28 +983,28 @@
 
       document.getElementById('confirmContent').innerHTML = `
         <div class="confirm-badge">&check;</div>
-        <h1>Naročilo oddano</h1>
-        <p class="section-sub" style="margin:6px 0 18px;">${esc(restaurantName)} je prejela vaše naročilo.</p>
+        <h1>${t('confirm_title')}</h1>
+        <p class="section-sub" style="margin:6px 0 18px;">${esc(restaurantName)} ${t('confirm_received')}</p>
         <div class="confirm-box">
           ${(order.items || []).map((i) => `<div class="confirm-row"><span>${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' <span class="confirm-row-sub">(' + esc(i.variant_name) + ')</span>' : ''}${(i.addons && i.addons.length) ? '<br><span class="confirm-row-sub">+ ' + i.addons.map((a) => esc(a.name)).join(', ') + '</span>' : ''}</span><span>${eur(i.price * i.qty)}</span></div>`).join('')}
-          ${Number(order.discount_amount || 0) > 0 ? `<div class="confirm-row"><span>Popust</span><span>&minus;${eur(order.discount_amount)}</span></div>` : ''}
-          ${Number(order.loyalty_discount_amount || 0) > 0 ? `<div class="confirm-row"><span>Točke zvestobe (${order.loyalty_points_used})</span><span>&minus;${eur(order.loyalty_discount_amount)}</span></div>` : ''}
-          ${order.delivery_fee ? `<div class="confirm-row"><span>Strošek dostave</span><span>${eur(order.delivery_fee)}</span></div>` : ''}
-          <div class="confirm-row total"><span>Skupaj za plačilo</span><span>${eur(grandTotal)}</span></div>
+          ${Number(order.discount_amount || 0) > 0 ? `<div class="confirm-row"><span>${t('confirm_discount')}</span><span>&minus;${eur(order.discount_amount)}</span></div>` : ''}
+          ${Number(order.loyalty_discount_amount || 0) > 0 ? `<div class="confirm-row"><span>${t('confirm_loyalty')} (${order.loyalty_points_used})</span><span>&minus;${eur(order.loyalty_discount_amount)}</span></div>` : ''}
+          ${order.delivery_fee ? `<div class="confirm-row"><span>${t('cart_delivery_fee')}</span><span>${eur(order.delivery_fee)}</span></div>` : ''}
+          <div class="confirm-row total"><span>${t('confirm_total')}</span><span>${eur(grandTotal)}</span></div>
           ${vat && vat.rows && vat.rows.length ? `
           <p class="cart-vat-note" style="text-align:left; margin-top:8px;">
-            ${vat.rows.map((r) => `Od tega DDV ${r.rate}%: ${eur(r.ddv)} (osnova ${eur(r.osnova)})`).join('<br>')}
+            ${vat.rows.map((r) => `${t('confirm_vat_prefix')} ${r.rate}%: ${eur(r.ddv)} (${t('confirm_base')} ${eur(r.osnova)})`).join('<br>')}
           </p>` : ''}
           <hr class="confirm-hr">
-          <div class="confirm-row"><span>Način</span><span>${order.type === 'dostava' ? 'Dostava' : 'Prevzem'}</span></div>
-          <div class="confirm-row"><span>Termin</span><span>${esc(order.time_slot)}</span></div>
-          <div class="confirm-row"><span>Plačilo</span><span>${order.payment === 'kartica' ? 'Kartica' : 'Gotovina'} &middot; ob ${order.type === 'dostava' ? 'dostavi' : 'prevzemu'}</span></div>
-          <p class="form-note" style="margin-top:14px;">Plačilo poteka neposredno pri gostilni. Mizica ne obdeluje plačil.</p>
+          <div class="confirm-row"><span>${t('confirm_method')}</span><span>${order.type === 'dostava' ? t('delivery') : t('pickup')}</span></div>
+          <div class="confirm-row"><span>${t('confirm_time')}</span><span>${esc(order.time_slot)}</span></div>
+          <div class="confirm-row"><span>${t('confirm_payment')}</span><span>${order.payment === 'kartica' ? t('card') : t('cash')} &middot; ${order.type === 'dostava' ? t('confirm_on_delivery') : t('confirm_on_pickup')}</span></div>
+          <p class="form-note" style="margin-top:14px;">${t('confirm_pay_note')}</p>
         </div>
         ${canCancel ? `
-          <button class="secondary-btn" style="margin-top:16px;" type="button" id="cancelOrderBtn">Prekliči naročilo (še ${mm}:${String(ss).padStart(2,'0')})</button>
-        ` : (order.status === 'zavrnjeno' ? '<p class="warn-note" style="margin-top:16px;">Naročilo je bilo preklicano/zavrnjeno.</p>' : '')}
-        <button class="link-btn" type="button" id="confirmBackBtn">Nazaj na ponudbo</button>
+          <button class="secondary-btn" style="margin-top:16px;" type="button" id="cancelOrderBtn">${t('confirm_cancel_btn')} ${mm}:${String(ss).padStart(2,'0')})</button>
+        ` : (order.status === 'zavrnjeno' ? `<p class="warn-note" style="margin-top:16px;">${t('confirm_cancelled')}</p>` : '')}
+        <button class="link-btn" type="button" id="confirmBackBtn">${t('confirm_back')}</button>
       `;
       const cancelBtn = document.getElementById('cancelOrderBtn');
       if (cancelBtn) cancelBtn.addEventListener('click', () => cancelOrderFlow(order, vat, restaurantName));
@@ -735,10 +1019,10 @@
   async function cancelOrderFlow(order, vat, restaurantName) {
     try {
       const updated = await apiFetch('/orders/' + order.id + '/cancel', { method: 'POST' });
-      showToast('Naročilo preklicano.');
+      showToast(uiLang === 'en' ? 'Order cancelled.' : 'Naročilo preklicano.');
       renderConfirm(Object.assign({}, order, updated), vat, restaurantName);
     } catch (e) {
-      showToast(e.message);
+      showToast(trErr(e.message));
     }
   }
 
@@ -777,21 +1061,22 @@
     renderAccountProfile();
     syncMyKrajFilterVisibility();
     renderMarket();
-    document.getElementById('accountOrders').innerHTML = '<div class="loading-note">Nalagam naročila...</div>';
+    document.getElementById('accountOrders').innerHTML = `<div class="loading-note">${uiLang === 'en' ? 'Loading orders...' : 'Nalagam naročila...'}</div>`;
     try {
       customerOrders = await authedFetch('/customer/orders', {}, customerToken());
       renderAccountOrders();
     } catch (e) {
-      document.getElementById('accountOrders').innerHTML = `<div class="error-note">Naročil ni bilo mogoče naložiti (${esc(e.message)}).</div>`;
+      document.getElementById('accountOrders').innerHTML = `<div class="error-note">${uiLang === 'en' ? 'Could not load orders' : 'Naročil ni bilo mogoče naložiti'} (${esc(trErr(e.message))}).</div>`;
     }
     const loyaltyWrap = document.getElementById('accountLoyaltyOverview');
     if (loyaltyWrap) {
-      loyaltyWrap.innerHTML = '<div class="loading-note">Nalagam...</div>';
+      loyaltyWrap.innerHTML = `<div class="loading-note">${t('market_loading')}</div>`;
       try {
         const overview = await authedFetch('/customer/loyalty-overview', {}, customerToken());
+        lastLoyaltyOverview = overview;
         renderAccountLoyaltyOverview(overview);
       } catch (e) {
-        loyaltyWrap.innerHTML = `<div class="error-note">Ni bilo mogoče naložiti (${esc(e.message)}).</div>`;
+        loyaltyWrap.innerHTML = `<div class="error-note">${uiLang === 'en' ? 'Could not load' : 'Ni bilo mogoče naložiti'} (${esc(trErr(e.message))}).</div>`;
       }
     }
   }
@@ -799,7 +1084,7 @@
   function renderAccountLoyaltyOverview(list) {
     const wrap = document.getElementById('accountLoyaltyOverview');
     if (!wrap) return;
-    if (!list || !list.length) { wrap.innerHTML = '<p class="section-sub">Trenutno nimate zbranih točk ali dostopnih kod za popust pri nobeni gostilni.</p>'; return; }
+    if (!list || !list.length) { wrap.innerHTML = `<p class="section-sub">${t('loyalty_none')}</p>`; return; }
     wrap.innerHTML = `
       <div class="loyalty-overview-list">
         ${list.map((r) => `
@@ -808,8 +1093,8 @@
             <div class="loyalty-overview-main">
               <span class="loyalty-overview-name">${esc(r.name)}</span>
               <div class="loyalty-overview-tags">
-                ${r.loyalty_balance > 0 ? `<span class="tag gold">&#9733; ${r.loyalty_balance} točk</span>` : ''}
-                ${(r.discount_codes || []).map((c) => `<span class="tag">Koda ${esc(c.code)} &minus;${c.percent}%</span>`).join('')}
+                ${r.loyalty_balance > 0 ? `<span class="tag gold">&#9733; ${r.loyalty_balance} ${t('loyalty_points_suffix')}</span>` : ''}
+                ${(r.discount_codes || []).map((c) => `<span class="tag">${t('loyalty_code_prefix')} ${esc(c.code)} &minus;${c.percent}%</span>`).join('')}
               </div>
             </div>
           </button>
@@ -823,10 +1108,10 @@
     const wrap = document.getElementById('accountProfile');
     wrap.innerHTML = `
       <div class="settings-block">
-        <div class="settings-row"><span class="lbl">Ime in priimek</span><input class="text-input" style="max-width:220px;" value="${esc(meta.ime||'')}" onchange="window.__updateAccountMeta('ime',this.value)"></div>
-        <div class="settings-row"><span class="lbl">Telefon</span><input class="text-input" style="max-width:220px;" value="${esc(meta.telefon||'')}" onchange="window.__updateAccountMeta('telefon',this.value)"></div>
-        <div class="settings-row"><span class="lbl">Kraj</span><input class="text-input" style="max-width:220px;" value="${esc(meta.kraj||'')}" placeholder="npr. Brežice" list="siPlacesList" onchange="window.__updateAccountMeta('kraj',this.value)"></div>
-        <p class="section-sub" id="accountKrajStatus" style="margin-top:4px;">${meta.kraj ? (meta.lat != null ? '' : 'Kraja ni bilo mogoče najti — filter "v bližini" ne bo deloval.') : ''}</p>
+        <div class="settings-row"><span class="lbl">${t('field_name')}</span><input class="text-input" style="max-width:220px;" value="${esc(meta.ime||'')}" onchange="window.__updateAccountMeta('ime',this.value)"></div>
+        <div class="settings-row"><span class="lbl">${t('field_phone')}</span><input class="text-input" style="max-width:220px;" value="${esc(meta.telefon||'')}" onchange="window.__updateAccountMeta('telefon',this.value)"></div>
+        <div class="settings-row"><span class="lbl">${t('field_place')}</span><input class="text-input" style="max-width:220px;" value="${esc(meta.kraj||'')}" placeholder="${t('field_place_ph')}" list="siPlacesList" onchange="window.__updateAccountMeta('kraj',this.value)"></div>
+        <p class="section-sub" id="accountKrajStatus" style="margin-top:4px;">${meta.kraj ? (meta.lat != null ? '' : (uiLang === 'en' ? 'Could not find this town — the "nearby" filter will not work.' : 'Kraja ni bilo mogoče najti — filter "v bližini" ne bo deloval.')) : ''}</p>
         <div id="accountNearbyWrap"></div>
       </div>
     `;
@@ -848,15 +1133,15 @@
       .sort((a, b) => a.d - b.d);
 
     if (!restaurants.length) {
-      wrap.innerHTML = `<p class="section-sub" style="margin-top:10px;">Nalagam gostilne...</p>`;
+      wrap.innerHTML = `<p class="section-sub" style="margin-top:10px;">${t('market_loading')}</p>`;
       return;
     }
     if (!nearby.length) {
-      wrap.innerHTML = `<p class="section-sub" style="margin-top:10px;">V bližini (do ${NEARBY_RADIUS_KM} km) trenutno ni gostiln na Mizici.</p>`;
+      wrap.innerHTML = `<p class="section-sub" style="margin-top:10px;">${t('nearby_none')} ${NEARBY_RADIUS_KM} ${t('nearby_none_suffix')}</p>`;
       return;
     }
     wrap.innerHTML = `
-      <p class="section-sub" style="margin-top:14px; margin-bottom:8px;">Gostilne v bližini (do ${NEARBY_RADIUS_KM} km):</p>
+      <p class="section-sub" style="margin-top:14px; margin-bottom:8px;">${t('nearby_title')} ${NEARBY_RADIUS_KM} km):</p>
       <div class="nearby-list">
         ${nearby.map(({ r, d }) => `
           <button type="button" class="nearby-row" onclick="window.__openRestaurant('${r.id}')">
@@ -875,7 +1160,7 @@
     try {
       if (field === 'kraj') {
         const statusEl = document.getElementById('accountKrajStatus');
-        if (statusEl) statusEl.textContent = 'Iščem kraj...';
+        if (statusEl) statusEl.textContent = uiLang === 'en' ? 'Looking up town...' : 'Iščem kraj...';
         const updatedMeta = await authedFetch('/customer/profile', { method: 'PATCH', body: { kraj: value } }, customerToken());
         // Kraj/koordinati shranimo prek lastnega API-ja (ne prek sb.auth.updateUser), zato Supabase
         // seja v brskalniku (localStorage) o tem ne ve — brez osvežitve seje bi se ob naslednjem
@@ -887,30 +1172,35 @@
         } else {
           customerSession.user.user_metadata = updatedMeta;
         }
-        if (statusEl) statusEl.textContent = updatedMeta.lat != null ? 'Kraj najden.' : 'Kraja ni bilo mogoče najti — filter "v bližini" ne bo deloval.';
+        if (statusEl) statusEl.textContent = updatedMeta.lat != null
+          ? (uiLang === 'en' ? 'Town found.' : 'Kraj najden.')
+          : (uiLang === 'en' ? 'Could not find this town — the "nearby" filter will not work.' : 'Kraja ni bilo mogoče najti — filter "v bližini" ne bo deloval.');
       } else {
         const { data, error } = await sb.auth.updateUser({ data: Object.assign({}, customerMeta(), { [field]: value }) });
         if (error) throw error;
         customerSession.user = data.user;
       }
-      showToast('Shranjeno.');
+      showToast(uiLang === 'en' ? 'Saved.' : 'Shranjeno.');
       syncMyKrajFilterVisibility();
       renderMarket();
       renderAccountNearby();
     } catch (e) {
-      showToast(e.message);
+      showToast(trErr(e.message));
     }
   }
   window.__updateAccountMeta = updateAccountMeta;
 
   const CUSTOMER_STATUS_LABEL = {
-    novo: 'Novo', priprava: 'V pripravi', pripravljeno: 'Pripravljeno',
-    prevzeto: 'Prevzeto/oddano', zavrnjeno: 'Zavrnjeno/preklicano'
+    get novo() { return t('status_novo'); },
+    get priprava() { return t('status_priprava'); },
+    get pripravljeno() { return t('status_pripravljeno'); },
+    get prevzeto() { return t('status_prevzeto'); },
+    get zavrnjeno() { return t('status_zavrnjeno'); }
   };
 
   function renderAccountOrders() {
     const wrap = document.getElementById('accountOrders');
-    if (!customerOrders.length) { wrap.innerHTML = '<p class="empty-col">Še nimate naročil.</p>'; return; }
+    if (!customerOrders.length) { wrap.innerHTML = `<p class="empty-col">${t('no_orders_yet')}</p>`; return; }
     wrap.innerHTML = customerOrders.map((o) => {
       const rest = o.restaurants || {};
       const total = o.vat ? o.vat.grandTotal : 0;
@@ -919,23 +1209,23 @@
       let reviewHtml = '';
       if (o.status === 'prevzeto') {
         reviewHtml = existingReview
-          ? `<div class="order-review-done"><span class="review-stars">${starsHtml(existingReview.rating)}</span> Ocenjeno</div>`
-          : `<button class="secondary-btn" type="button" style="margin-top:8px;" onclick="window.__openReviewModal('${o.id}')">Ocenite naročilo</button>`;
+          ? `<div class="order-review-done"><span class="review-stars">${starsHtml(existingReview.rating)}</span> ${t('rated')}</div>`
+          : `<button class="secondary-btn" type="button" style="margin-top:8px;" onclick="window.__openReviewModal('${o.id}')">${t('rate_order')}</button>`;
       }
       return `
         <div class="order-card">
           <div class="order-card-top">
             <span class="order-id">${esc(rest.name || 'Gostilna')}</span>
-            <span class="order-time">${new Date(o.placed_at).toLocaleString('sl-SI', { day:'2-digit', month:'2-digit', year:'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            <span class="order-time">${new Date(o.placed_at).toLocaleString(uiLang === 'en' ? 'en-GB' : 'sl-SI', { day:'2-digit', month:'2-digit', year:'numeric', hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           <div class="order-meta-row">
-            <span class="tag">${o.type === 'dostava' ? 'Dostava' : 'Prevzem'}</span>
+            <span class="tag">${o.type === 'dostava' ? t('delivery') : t('pickup')}</span>
             <span class="tag gold">${esc(CUSTOMER_STATUS_LABEL[o.status] || o.status)}</span>
           </div>
           <p class="order-items-line">${items}</p>
-          ${Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0) > 0 ? `<p class="order-items-line">Popust: &minus;${eur(Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0))}</p>` : ''}
+          ${Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0) > 0 ? `<p class="order-items-line">${t('order_discount')} &minus;${eur(Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0))}</p>` : ''}
           <p class="order-total-line">${eur(total)}</p>
-          ${Number(o.loyalty_points_earned || 0) > 0 ? `<p class="order-items-line">Prislužene točke zvestobe: +${o.loyalty_points_earned}</p>` : ''}
+          ${Number(o.loyalty_points_earned || 0) > 0 ? `<p class="order-items-line">${t('order_points_earned')} +${o.loyalty_points_earned}</p>` : ''}
           ${reviewHtml}
         </div>
       `;
@@ -947,18 +1237,18 @@
   function openReviewModal(orderId) {
     reviewRatingChoice = 0;
     openModal(`
-      <h3>Ocenite naročilo</h3>
+      <h3>${t('review_modal_title')}</h3>
       <div class="review-star-picker" id="reviewStarPicker">
         ${[1,2,3,4,5].map((n) => `<button type="button" class="review-star-btn" data-n="${n}" onclick="window.__setReviewStar(${n})">☆</button>`).join('')}
       </div>
       <div class="field-group">
-        <label class="field-label">Komentar (neobvezno)</label>
+        <label class="field-label">${t('review_comment_label')}</label>
         <textarea class="text-input" id="reviewComment" rows="3" maxlength="1000"></textarea>
       </div>
       <div class="field-error" id="reviewError"></div>
       <div class="modal-close-row">
-        <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
-        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__submitReview('${orderId}')">Oddaj oceno</button>
+        <button class="secondary-btn" type="button" onclick="closeModal()">${t('cancel')}</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__submitReview('${orderId}')">${t('submit_review')}</button>
       </div>
     `);
   }
@@ -974,29 +1264,27 @@
 
   async function submitReview(orderId) {
     const errEl = document.getElementById('reviewError');
-    if (!reviewRatingChoice) { errEl.textContent = 'Izberite oceno (vsaj eno zvezdico).'; return; }
+    if (!reviewRatingChoice) { errEl.textContent = t('err_pick_rating'); return; }
     const comment = document.getElementById('reviewComment').value.trim();
     try {
       await apiFetch('/orders/' + orderId + '/review', { method: 'POST', body: { rating: reviewRatingChoice, comment } });
       closeModal();
-      showToast('Hvala za oceno!');
+      showToast(t('thanks_review'));
       customerOrders = await authedFetch('/customer/orders', {}, customerToken());
       renderAccountOrders();
     } catch (e) {
-      errEl.textContent = e.message;
+      errEl.textContent = trErr(e.message);
     }
   }
   window.__submitReview = submitReview;
 
   document.getElementById('accountToggleModeBtn').addEventListener('click', () => {
     accountMode = accountMode === 'login' ? 'register' : 'login';
-    document.getElementById('accountFormTitle').textContent = accountMode === 'login' ? 'Prijava' : 'Registracija';
-    document.getElementById('accountFormSub').textContent = accountMode === 'login'
-      ? 'Prijavite se, da vidite zgodovino svojih naročil.'
-      : 'Ustvarite račun — hitreje boste naročali in videli zgodovino naročil.';
+    document.getElementById('accountFormTitle').textContent = t(accountMode === 'login' ? 'login_title' : 'register_title');
+    document.getElementById('accountFormSub').textContent = t(accountMode === 'login' ? 'login_sub' : 'register_sub');
     document.getElementById('accountRegisterFields').style.display = accountMode === 'register' ? 'block' : 'none';
-    document.getElementById('accountSubmitBtn').textContent = accountMode === 'login' ? 'Prijava' : 'Registracija';
-    document.getElementById('accountToggleModeBtn').textContent = accountMode === 'login' ? 'Nimate računa? Registrirajte se' : 'Že imate račun? Prijavite se';
+    document.getElementById('accountSubmitBtn').textContent = t(accountMode === 'login' ? 'login_title' : 'register_title');
+    document.getElementById('accountToggleModeBtn').textContent = t(accountMode === 'login' ? 'to_register' : 'to_login');
     document.getElementById('accountLoginError').textContent = '';
   });
 
@@ -1026,8 +1314,10 @@
         if (error) throw error;
         customerSession = data.session;
       }
-      if (!customerSession) { errEl.textContent = 'Prijava ni uspela, poskusite znova.'; return; }
-      showToast(accountMode === 'register' ? 'Račun ustvarjen — dobrodošli!' : 'Prijavljeni ste.');
+      if (!customerSession) { errEl.textContent = t('err_login_failed'); return; }
+      showToast(accountMode === 'register'
+        ? (uiLang === 'en' ? 'Account created — welcome!' : 'Račun ustvarjen — dobrodošli!')
+        : (uiLang === 'en' ? "You're logged in." : 'Prijavljeni ste.'));
       await showAccountApp();
     } catch (err) {
       errEl.textContent = err.message;
@@ -1370,16 +1660,22 @@
   }
   function todayStr() { return new Date().toISOString().slice(0, 10); }
 
-  function catTimeLabel(cat) {
+  // forCustomer=true prevede oznake glede na izbran jezik strani (stran za stranke); gostilna
+  // (renderOwnerMenu) vedno vidi slovensko, zato ta zastavica tam ostane privzeto false.
+  function catTimeLabel(cat, forCustomer) {
+    const en = forCustomer && uiLang === 'en';
     const parts = [];
     if (cat.je_malica) {
       const stale = cat.malica_datum && cat.malica_datum !== todayStr();
-      parts.push(`<span class="pill-daily${stale ? ' pill-stale' : ''}">${cat.malica_datum ? slDateLabel(cat.malica_datum) : 'Malica'}${stale ? ' — morda ni več aktualno' : ''}</span>`);
+      const dateLabel = cat.malica_datum
+        ? (en ? new Date(cat.malica_datum + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : slDateLabel(cat.malica_datum))
+        : (en ? "Today's special" : 'Malica');
+      parts.push(`<span class="pill-daily${stale ? ' pill-stale' : ''}">${dateLabel}${stale ? (en ? ' — may be outdated' : ' — morda ni več aktualno') : ''}</span>`);
     }
     if (cat.aktivna_od || cat.aktivna_do) {
       const od = cat.aktivna_od ? cat.aktivna_od.slice(0, 5) : '?';
       const doo = cat.aktivna_do ? cat.aktivna_do.slice(0, 5) : '?';
-      parts.push(`<span class="pill-daily">Na voljo ${od}&ndash;${doo}</span>`);
+      parts.push(`<span class="pill-daily">${en ? 'Available' : 'Na voljo'} ${od}&ndash;${doo}</span>`);
     }
     return parts.join(' ');
   }
@@ -2304,6 +2600,7 @@
     list.innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
   }).catch(() => {});
 
+  applyStaticI18n();
   loadMarket();
   if (shareRestaurantId) {
     openRestaurant(shareRestaurantId);

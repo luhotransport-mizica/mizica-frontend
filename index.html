@@ -12,10 +12,11 @@
   <div class="topbar-inner">
     <div class="brand"><span class="brand-mark">M</span>Mizica</div>
     <div class="viewnav">
-      <button data-view="market" class="active">Ponudba</button>
+      <button data-view="market" class="active" id="navMarketBtn">Ponudba</button>
       <button data-view="account" id="navAccountBtn">Moj račun</button>
       <button data-view="owner" id="navOwnerBtn" style="display:none;">Za gostilne<span class="nav-badge" id="ownerBadge"></span></button>
       <button data-view="admin" id="navAdminBtn" style="display:none;">Skrbnik</button>
+      <button type="button" id="langToggleBtn" class="lang-toggle-btn">EN</button>
     </div>
   </div>
 </div>
@@ -26,16 +27,16 @@
   <!-- ================= MARKET ================= -->
   <section class="view active" id="view-market">
     <div class="market-head">
-      <span class="eyebrow">Brez provizije za plačila</span>
-      <h1>Naročite pri lokalnih gostilnah</h1>
-      <p class="lede">Plačilo vedno neposredno gostilni — z gotovino ali kartico ob prevzemu/dostavi. Mizica ne obdeluje plačil.</p>
+      <span class="eyebrow" id="marketEyebrow">Brez provizije za plačila</span>
+      <h1 id="marketH1">Naročite pri lokalnih gostilnah</h1>
+      <p class="lede" id="marketLede">Plačilo vedno neposredno gostilni — z gotovino ali kartico ob prevzemu/dostavi. Mizica ne obdeluje plačil.</p>
     </div>
 
     <div class="market-filters">
       <input class="text-input" type="text" id="marketSearch" placeholder="Išči gostilno ali kraj...">
       <select class="select-input" id="marketKuhinja"><option value="">Vsa kuhinja</option></select>
-      <label class="checkbox-item"><input type="checkbox" id="marketOnlyOpen"> Samo odprto zdaj</label>
-      <label class="checkbox-item" id="marketOnlyMyKrajWrap" style="display:none;"><input type="checkbox" id="marketOnlyMyKraj" checked> Samo v bližini (do 20 km)</label>
+      <label class="checkbox-item"><input type="checkbox" id="marketOnlyOpen"> <span id="marketOnlyOpenLbl">Samo odprto zdaj</span></label>
+      <label class="checkbox-item" id="marketOnlyMyKrajWrap" style="display:none;"><input type="checkbox" id="marketOnlyMyKraj" checked> <span id="marketOnlyMyKrajLbl">Samo v bližini (do 20 km)</span></label>
     </div>
 
     <div id="marketGrid" class="restaurant-grid"></div>
@@ -62,19 +63,19 @@
         <p class="section-sub" id="accountFormSub">Prijavite se, da vidite zgodovino svojih naročil.</p>
         <form id="accountLoginForm">
           <div class="field-group">
-            <label class="field-label">E-pošta</label>
+            <label class="field-label" id="accountEmailLbl">E-pošta</label>
             <input class="text-input" type="email" id="accountEmail" required autocomplete="username">
           </div>
           <div class="field-group">
-            <label class="field-label">Geslo</label>
+            <label class="field-label" id="accountPasswordLbl">Geslo</label>
             <input class="text-input" type="password" id="accountPassword" required autocomplete="current-password">
           </div>
           <div class="field-group" id="accountRegisterFields" style="display:none;">
-            <label class="field-label">Ime in priimek</label>
+            <label class="field-label" id="accountImeLbl">Ime in priimek</label>
             <input class="text-input" type="text" id="accountIme" autocomplete="name">
-            <label class="field-label" style="margin-top:10px;">Telefon</label>
+            <label class="field-label" id="accountTelefonLbl" style="margin-top:10px;">Telefon</label>
             <input class="text-input" type="tel" id="accountTelefon" autocomplete="tel">
-            <label class="field-label" style="margin-top:10px;">Kraj</label>
+            <label class="field-label" id="accountKrajLbl" style="margin-top:10px;">Kraj</label>
             <input class="text-input" type="text" id="accountKraj" placeholder="npr. Brežice" autocomplete="address-level2" list="siPlacesList">
           </div>
           <div class="field-error" id="accountLoginError"></div>
@@ -90,17 +91,17 @@
         <button class="secondary-btn" id="accountLogoutBtn">Odjava</button>
       </div>
       <div class="panel">
-        <h2 class="section-title">Moji podatki</h2>
+        <h2 class="section-title" id="accountDataTitle">Moji podatki</h2>
         <div class="settings-grid" id="accountProfile"></div>
       </div>
       <div class="panel">
-        <h2 class="section-title">Točke zvestobe in kuponi</h2>
-        <p class="section-sub">Pregled po gostilnah, kjer imate zbrane točke ali kjer je trenutno na voljo koda za popust.</p>
+        <h2 class="section-title" id="accountLoyaltyTitle">Točke zvestobe in kuponi</h2>
+        <p class="section-sub" id="accountLoyaltySub">Pregled po gostilnah, kjer imate zbrane točke ali kjer je trenutno na voljo koda za popust.</p>
         <div id="accountLoyaltyOverview"></div>
       </div>
       <div class="panel">
-        <h2 class="section-title">Moja naročila</h2>
-        <p class="section-sub">Zgodovina in status vaših naročil pri vseh gostilnah.</p>
+        <h2 class="section-title" id="accountOrdersTitle">Moja naročila</h2>
+        <p class="section-sub" id="accountOrdersSub">Zgodovina in status vaših naročil pri vseh gostilnah.</p>
         <div id="accountOrders"></div>
       </div>
     </div>
@@ -271,7 +272,7 @@
 </div>
 
 <div class="cart-fab" id="cartFab">
-  <span>Košarica</span>
+  <span id="cartFabLabel">Košarica</span>
   <span class="cart-fab-badge" id="cartFabBadge">0</span>
 </div>
 
