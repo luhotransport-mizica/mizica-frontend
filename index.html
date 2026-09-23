@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mizica</title>
 <meta name="description" content="Naročite hrano pri lokalnih gostilnah brez provizije za plačila. Plačilo vedno neposredno gostilni.">
+<!-- Open Graph / Twitter — predogled ob deljenju povezave na Facebooku, WhatsAppu, Messengerju ipd.
+     Za posamezno gostilno (povezava ?r=ID) te oznake ne zadostujejo same po sebi, ker jih ti servisi
+     berejo iz surovega HTML-ja brez poganjanja JavaScripta — zato ima gostilna svoj predogled prek
+     backend poti /share/restaurant/:id (glej shareLinkFor v app.js). Te spodaj so splošni privzeti
+     predogled za glavno stran ponudbe. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mizica">
+<meta property="og:title" content="Mizica — naročanje pri lokalnih gostilnah">
+<meta property="og:description" content="Naročite hrano pri lokalnih gostilnah brez provizije za plačila. Plačilo vedno neposredno gostilni.">
+<meta property="og:image" content="https://mizica-frontend.onrender.com/icons/og-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://mizica-frontend.onrender.com">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Mizica — naročanje pri lokalnih gostilnah">
+<meta name="twitter:description" content="Naročite hrano pri lokalnih gostilnah brez provizije za plačila.">
+<meta name="twitter:image" content="https://mizica-frontend.onrender.com/icons/og-default.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#7A2E2E">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -224,6 +241,7 @@
             <div><h2 class="section-title">Mesečna analitika</h2><p class="section-sub">Promet, naročila in vaš zaslužek po gostilnah.</p></div>
             <select class="select-input dark-input" id="monthSelect"></select>
           </div>
+          <div id="trialReminderBox"></div>
           <div class="stat-row" id="statRow"></div>
           <div class="admin-panel-box">
             <table class="admin-table">
@@ -239,7 +257,7 @@
           </div>
           <div class="admin-table-wrap">
             <table class="admin-table">
-              <thead><tr><th>Ime</th><th>Kraj</th><th>E-pošta</th><th>Status</th><th>Obračun</th><th></th></tr></thead>
+              <thead><tr><th>Ime</th><th>Kraj</th><th>E-pošta</th><th>Status</th><th>Preizkus</th><th>Obračun</th><th></th></tr></thead>
               <tbody id="adminTableBody"></tbody>
             </table>
           </div>
@@ -257,6 +275,7 @@
                 <div class="form-field"><label>Odpre</label><input class="text-input dark-input" type="time" id="newOd" value="09:00"></div>
                 <div class="form-field"><label>Zapre</label><input class="text-input dark-input" type="time" id="newDo" value="20:00"></div>
                 <div class="form-field"><label>Naročil na termin (max.)</label><input class="text-input dark-input" type="number" id="newMaxSlot" value="6"></div>
+                <div class="form-field"><label>Dni brezplačno</label><input class="text-input dark-input" type="number" id="newTrialDays" value="30" min="0"></div>
               </div>
               <hr class="form-sep">
               <span class="fieldset-title">Obračunski model</span>

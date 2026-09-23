@@ -310,6 +310,16 @@ table.admin-table{width:100%; border-collapse:collapse; font-size:.86rem; min-wi
 .status-pill.active{background:var(--green-soft); color:var(--green);}
 .status-pill.inactive{background:rgba(255,255,255,.08); color:var(--admin-ink-soft);}
 .status-pill.warn{background:var(--red-soft); color:#D68A85;}
+.status-pill.trial-ok{background:var(--green-soft); color:var(--green);}
+.status-pill.trial-soon{background:var(--gold-soft); color:var(--gold);}
+.status-pill.trial-over{background:var(--red-soft); color:#D68A85;}
+.status-pill.trial-none{background:rgba(255,255,255,.08); color:var(--admin-ink-soft);}
+
+.trial-alert-box{background:rgba(214,138,133,.12); border:1px solid rgba(214,138,133,.4); border-radius:var(--radius-sm); padding:16px 18px; margin-bottom:18px;}
+.trial-alert-box h4{color:#D68A85; font-size:.92rem; margin-bottom:10px;}
+.trial-alert-box ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+.trial-alert-box li{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:.86rem; color:var(--admin-ink); background:rgba(255,255,255,.05); border-radius:8px; padding:8px 12px;}
+.trial-alert-box .link-btn{margin:0; font-size:.78rem; font-weight:700; color:#D68A85; white-space:nowrap;}
 .billing-line{font-size:.82rem;}
 .billing-line .sub{color:var(--admin-ink-soft); font-size:.76rem;}
 .td-actions{display:flex; gap:6px; flex-wrap:wrap;}

@@ -2478,15 +2478,36 @@
     } catch (e) { showToast(e.message); }
   }
 
+  // Stanje brezplačnega preizkusnega obdobja gostilne — samo informativno (nič se ne zgodi samodejno),
+  // opomni skrbnika, da je čas za dogovor o plačilu.
+  function trialStatus(r) {
+    if (r.trial_dismissed) return { label: 'Redna stranka', cls: 'trial-none' };
+    if (!r.trial_ends_at) return { label: '—', cls: 'trial-none' };
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const end = new Date(r.trial_ends_at + 'T00:00:00');
+    const daysLeft = Math.round((end - today) / 86400000);
+    const dateLabel = end.toLocaleDateString('sl-SI');
+    if (daysLeft < 0) return { label: `Poteklo (${dateLabel})`, cls: 'trial-over' };
+    if (daysLeft === 0) return { label: `Izteče danes`, cls: 'trial-soon' };
+    if (daysLeft <= 7) return { label: `Še ${daysLeft} dni (${dateLabel})`, cls: 'trial-soon' };
+    return { label: `Še ${daysLeft} dni (${dateLabel})`, cls: 'trial-ok' };
+  }
+
   function renderAdminRestaurantTable() {
     const q = (document.getElementById('adminSearchInput').value || '').toLowerCase().trim();
     const list = adminRestaurants.filter((r) => !q || (r.name || '').toLowerCase().includes(q) || (r.kraj || '').toLowerCase().includes(q));
-    document.getElementById('adminTableBody').innerHTML = list.map((r) => `
+    document.getElementById('adminTableBody').innerHTML = list.map((r) => {
+      const st = trialStatus(r);
+      return `
       <tr>
         <td>${esc(r.name)}</td>
         <td>${esc(r.kraj || '')}</td>
         <td>${esc(r.email || '—')}</td>
         <td><span class="status-pill ${r.aktivna ? 'active' : 'inactive'}">${r.aktivna ? 'Aktivna' : 'Neaktivna'}</span></td>
+        <td>
+          <span class="status-pill ${st.cls}">${st.label}</span>
+          ${!r.trial_dismissed && r.trial_ends_at ? `<button class="link-btn" type="button" style="display:block; margin-top:4px; font-size:.72rem;" onclick="window.__dismissTrial('${r.id}')">Označi kot plačujočo</button>` : ''}
+        </td>
         <td class="billing-line">${billingText(r)}</td>
         <td class="td-actions">
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openBillingModal('${r.id}')">Obračun</button>
@@ -2495,8 +2516,47 @@
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__toggleActive('${r.id}',${!r.aktivna})">${r.aktivna ? 'Deaktiviraj' : 'Aktiviraj'}</button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
+    renderTrialReminders();
   }
+
+  // Opomnik na vrhu zavihka "Pregled" — gostilne, ki jim preizkusno obdobje poteče v naslednjih 7
+  // dneh ali je že poteklo, da jih skrbnik ne spregleda med iskanjem po dolgem seznamu gostiln.
+  function renderTrialReminders() {
+    const box = document.getElementById('trialReminderBox');
+    if (!box) return;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const soon = adminRestaurants.filter((r) => {
+      if (r.trial_dismissed || !r.trial_ends_at) return false;
+      const end = new Date(r.trial_ends_at + 'T00:00:00');
+      const daysLeft = Math.round((end - today) / 86400000);
+      return daysLeft <= 7;
+    }).sort((a, b) => new Date(a.trial_ends_at) - new Date(b.trial_ends_at));
+    if (!soon.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `
+      <div class="trial-alert-box">
+        <h4>Preizkusno obdobje kmalu poteče ali je že poteklo (${soon.length})</h4>
+        <ul>
+          ${soon.map((r) => `
+            <li>
+              <span><strong>${esc(r.name)}</strong> &middot; ${trialStatus(r).label}</span>
+              <button class="link-btn" type="button" onclick="window.__dismissTrial('${r.id}')">Označi kot plačujočo</button>
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  async function dismissTrial(id) {
+    try {
+      await authedFetch('/admin/restaurants/' + id, { method: 'PATCH', body: { trial_dismissed: true } }, adminToken());
+      await loadAdminRestaurants();
+      showToast('Gostilna označena kot redna (plačujoča) stranka.');
+    } catch (e) { showToast(e.message); }
+  }
+  window.__dismissTrial = dismissTrial;
 
   function billingText(r) {
     if (r.billing_model === 'najemnina') return `Naročnina ${eur(r.najemnina)}/mes.`;
@@ -2688,6 +2748,7 @@
       odpira_od: document.getElementById('newOd').value,
       odpira_do: document.getElementById('newDo').value,
       max_per_slot: parseInt(document.getElementById('newMaxSlot').value, 10) || 6,
+      trial_days: document.getElementById('newTrialDays').value !== '' ? parseInt(document.getElementById('newTrialDays').value, 10) : undefined,
       billing_model: document.querySelector('input[name="billingModel"]:checked').value,
       najemnina: parseFloat(document.getElementById('newNajemnina').value) || 0,
       provizija: parseFloat(document.getElementById('newProvizija').value) || 0
