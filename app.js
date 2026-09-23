@@ -500,7 +500,7 @@
           </div>
           <div class="r-card-body">
             <div class="r-card-name">${esc(r.name)}</div>
-            <div class="r-card-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''}</div>
+            <div class="r-card-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''}${distanceLabel(r) ? ' &middot; ' + distanceLabel(r) : ''}</div>
             ${ratingLabel(r) ? `<div class="r-card-rating">${ratingLabel(r)}</div>` : ''}
             <div class="r-card-tags">${tagsForRestaurant(r)}</div>
             <div class="r-card-foot"><span>${r.odpira_od ? r.odpira_od.slice(0, 5) : ''}&ndash;${r.odpira_do ? r.odpira_do.slice(0, 5) : ''}</span></div>
@@ -508,6 +508,15 @@
         </button>
       </div>
     `).join('');
+  }
+
+  // Razdalja do gostilne (v km/m), izračunana in pripeta na objekt gostilne tik pred izrisom (glej
+  // marketDistances spodaj) — enak format kot pri "Moj račun" seznamu bližnjih gostiln.
+  let marketDistances = {};
+  function distanceLabel(r) {
+    const d = marketDistances[r.id];
+    if (d == null) return '';
+    return d < 1 ? Math.round(d * 1000) + ' m' : d.toFixed(1) + ' km';
   }
 
   function renderMarket() {
@@ -529,6 +538,15 @@
 
     if (textMatches.length || !q) {
       if (nearbyNote) nearbyNote.style.display = 'none';
+      // Če poznamo stranko (prijavljena, ima shranjen kraj/koordinate), ji ob vsaki gostilni pokažemo
+      // tudi razdaljo — enako kot na seznamu bližnjih gostiln na "Moj račun".
+      marketDistances = {};
+      if (myCoords) {
+        for (const r of textMatches) {
+          const d = distanceKm(myCoords, { lat: r.lat, lng: r.lng });
+          if (d != null) marketDistances[r.id] = d;
+        }
+      }
       renderMarketGrid(textMatches);
       return;
     }
@@ -536,6 +554,7 @@
     // Iskana beseda se ne ujema z nobenim imenom/krajem gostilne — morda gre za kraj, ki ga nobena
     // gostilna nima dobesedno zapisanega (npr. "Dobova" blizu Brežic). Poskusimo ga geokodirati in
     // namesto praznega seznama pokazati gostilne v bližini tega kraja.
+    marketDistances = {};
     renderMarketGrid([]);
     if (nearbyNote) nearbyNote.style.display = 'none';
     const mySeq = ++searchGeocodeSeq;
@@ -546,14 +565,18 @@
         .filter((r) => marketOtherFiltersMatch(r, ctx))
         .map((r) => ({ r, d: distanceKm(geo, { lat: r.lat, lng: r.lng }) }))
         .filter((x) => x.d != null && x.d <= NEARBY_RADIUS_KM)
-        .sort((a, b) => a.d - b.d)
-        .map((x) => x.r);
+        .sort((a, b) => a.d - b.d);
       if (!nearby.length) return;
       if (nearbyNote) {
         nearbyNote.textContent = `${t('market_nearby_note_prefix')} "${qRaw}" ${t('market_nearby_note_suffix')} ${NEARBY_RADIUS_KM} km.`;
         nearbyNote.style.display = '';
       }
-      renderMarketGrid(nearby);
+      // Razdalja tu velja od VPISANEGA kraja (iskalna beseda), ne nujno od stranke same — če je
+      // stranka prijavljena, njena lastna razdalja (od zgornje veje) tu ni na voljo, kar je prav,
+      // saj gostilne ne iščemo po njeni lokaciji, ampak po vpisanem kraju.
+      marketDistances = {};
+      for (const x of nearby) marketDistances[x.r.id] = x.d;
+      renderMarketGrid(nearby.map((x) => x.r));
     });
   }
   document.getElementById('marketSearch').addEventListener('input', renderMarket);
