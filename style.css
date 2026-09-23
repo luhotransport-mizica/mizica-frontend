@@ -88,6 +88,7 @@ main{padding-block:28px 60px;}
 .market-filters .select-input{flex:1; min-width:130px;}
 .market-filters .checkbox-item{flex-shrink:0;}
 .empty-note{color:var(--ink-soft); font-size:.9rem; padding:30px 4px; text-align:center;}
+.muted-text{color:var(--ink-soft); font-size:.88rem; line-height:1.45; margin:0 0 10px;}
 .market-nearby-note{color:var(--gold); background:var(--gold-soft); border-radius:var(--radius-sm); padding:10px 14px; font-size:.85rem; font-weight:600; margin:16px 0 6px;}
 
 .restaurant-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:18px; margin-top:20px;}
