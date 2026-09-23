@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mizica</title>
+<meta name="description" content="Naročite hrano pri lokalnih gostilnah brez provizije za plačila. Plačilo vedno neposredno gostilni.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7A2E2E">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mizica">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,6 +25,7 @@
       <button data-view="owner" id="navOwnerBtn" style="display:none;">Za gostilne<span class="nav-badge" id="ownerBadge"></span></button>
       <button data-view="admin" id="navAdminBtn" style="display:none;">Skrbnik</button>
       <button type="button" id="langToggleBtn" class="lang-toggle-btn">EN</button>
+      <button type="button" id="installAppBtn" class="lang-toggle-btn" style="display:none;">&#8595; Namesti</button>
     </div>
   </div>
 </div>
@@ -136,7 +145,10 @@
       </div>
       <div class="owner-toolbar">
         <div><h2 class="section-title">Naročila</h2><p class="section-sub">Sledite naročilom v realnem času.</p></div>
-        <button class="secondary-btn" id="ownerRefreshBtn">Osveži</button>
+        <div class="owner-toolbar-actions">
+          <button class="secondary-btn" type="button" onclick="window.__openExportModal()">Izvozi naročila (CSV)</button>
+          <button class="secondary-btn" id="ownerRefreshBtn">Osveži</button>
+        </div>
       </div>
       <div class="board" id="ownerBoard"></div>
 

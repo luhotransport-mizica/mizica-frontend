@@ -1621,6 +1621,127 @@
   }
   window.__printOrder = printOrder;
 
+  // ---------------- izvoz naročil (CSV, za računovodstvo/DDV) ----------------
+  // Ker plačila NE gredo prek Mizice, mora vsako naročilo za DDV/FURS poročati gostilna sama —
+  // izvoz ji da razčlenitev po stopnjah DDV za izbrano obdobje, pripravljeno za Excel (ločeno s ";",
+  // decimalna vejica, UTF-8 z BOM, da so šumniki pravilno prikazani).
+  const ORDER_STATUS_LABEL_CSV = { novo: 'Novo', priprava: 'V pripravi', pripravljeno: 'Pripravljeno', prevzeto: 'Prevzeto/oddano', zavrnjeno: 'Zavrnjeno/preklicano' };
+
+  function clientVatBreakdown(items, deliveryFee, discount) {
+    const groups = {};
+    for (const li of items) groups[li.vat_rate] = (groups[li.vat_rate] || 0) + li.price * li.qty;
+    const itemsGross = Object.values(groups).reduce((s, g) => s + g, 0);
+    if (discount > 0 && itemsGross > 0) {
+      const ratio = Math.max(0, (itemsGross - discount) / itemsGross);
+      for (const rate of Object.keys(groups)) groups[rate] *= ratio;
+    }
+    if (deliveryFee > 0) groups[22] = (groups[22] || 0) + deliveryFee; // dostava vedno po splošni 22% stopnji, enako kot na strežniku
+    const out = {};
+    for (const [rate, gross] of Object.entries(groups)) {
+      const r = Number(rate);
+      const osnova = gross / (1 + r / 100);
+      out[r] = { osnova, ddv: gross - osnova };
+    }
+    return out;
+  }
+
+  function csvCell(v) {
+    const s = String(v == null ? '' : v);
+    return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function csvNum(n) { return (Math.round((Number(n) || 0) * 100) / 100).toFixed(2).replace('.', ','); }
+
+  function openExportModal() {
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const toISO = (d) => d.toISOString().slice(0, 10);
+    openModal(`
+      <h3>Izvoz naročil (CSV)</h3>
+      <p class="section-sub">Izvozite naročila za izbrano obdobje — primerno za obračun DDV in poročanje FURS. Odpre se v Excelu.</p>
+      <div class="field-group"><label class="field-label">Od datuma</label><input class="text-input" type="date" id="exportFrom" value="${toISO(firstOfMonth)}"></div>
+      <div class="field-group"><label class="field-label">Do datuma</label><input class="text-input" type="date" id="exportTo" value="${toISO(today)}"></div>
+      <label class="chip-check" style="margin-top:4px;"><input type="checkbox" id="exportIncludeRejected"> Vključi zavrnjena/preklicana naročila</label>
+      <div class="field-error" id="exportError"></div>
+      <button class="primary-btn" type="button" style="margin-top:16px;" onclick="window.__runExportOrders()">Prenesi CSV</button>
+    `);
+  }
+  window.__openExportModal = openExportModal;
+
+  function runExportOrders() {
+    const fromVal = document.getElementById('exportFrom').value;
+    const toVal = document.getElementById('exportTo').value;
+    const includeRejected = document.getElementById('exportIncludeRejected').checked;
+    const errEl = document.getElementById('exportError');
+    if (!fromVal || !toVal) { errEl.textContent = 'Izberite oba datuma.'; return; }
+    const from = new Date(fromVal + 'T00:00:00');
+    const to = new Date(toVal + 'T23:59:59');
+    if (from > to) { errEl.textContent = 'Datum "Od" mora biti pred datumom "Do".'; return; }
+
+    const orders = ownerOrders.filter((o) => {
+      const d = new Date(o.placed_at);
+      if (d < from || d > to) return false;
+      if (o.status === 'zavrnjeno' && !includeRejected) return false;
+      return true;
+    }).slice().sort((a, b) => new Date(a.placed_at) - new Date(b.placed_at));
+
+    if (!orders.length) { errEl.textContent = 'Ni naročil v izbranem obdobju.'; return; }
+
+    // Vse stopnje DDV, ki se pojavijo v izbranem obdobju — stolpci se prilagodijo samodejno.
+    const ratesSet = new Set();
+    const perOrderVat = orders.map((o) => {
+      const items = (o.order_items || []).map((i) => ({ price: i.price, qty: i.qty, vat_rate: i.vat_rate }));
+      const discount = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
+      const vb = clientVatBreakdown(items, Number(o.delivery_fee || 0), discount);
+      Object.keys(vb).forEach((r) => ratesSet.add(Number(r)));
+      return vb;
+    });
+    const rates = [...ratesSet].sort((a, b) => a - b);
+
+    const header = ['Datum', 'Ura', 'Stranka', 'Telefon', 'Naslov', 'Način', 'Plačilo', 'Jedi',
+      ...rates.flatMap((r) => [`Osnova ${r}% (€)`, `DDV ${r}% (€)`]),
+      'Popust (€)', 'Dostava (€)', 'Skupaj (€)', 'Status'];
+
+    const lines = [header.map(csvCell).join(';')];
+    orders.forEach((o, idx) => {
+      const items = (o.order_items || []).map((i) => `${i.qty}x ${i.name}`).join(', ');
+      const itemsSubtotal = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0);
+      const discountTotal = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
+      const total = Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0);
+      const vb = perOrderVat[idx];
+      const d = new Date(o.placed_at);
+      const row = [
+        d.toLocaleDateString('sl-SI'),
+        d.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' }),
+        o.customer_name || '',
+        o.phone || '',
+        o.address || '',
+        o.type === 'dostava' ? 'Dostava' : 'Prevzem',
+        o.payment === 'kartica' ? 'Kartica' : 'Gotovina',
+        items,
+        ...rates.flatMap((r) => [csvNum(vb[r] ? vb[r].osnova : 0), csvNum(vb[r] ? vb[r].ddv : 0)]),
+        csvNum(discountTotal),
+        csvNum(o.delivery_fee || 0),
+        csvNum(total),
+        ORDER_STATUS_LABEL_CSV[o.status] || o.status,
+      ];
+      lines.push(row.map(csvCell).join(';'));
+    });
+
+    const csvContent = '﻿' + lines.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mizica-narocila_${fromVal}_${toVal}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    closeModal();
+    showToast(`Izvoženih ${orders.length} naročil.`);
+  }
+  window.__runExportOrders = runExportOrders;
+
   async function advanceOrder(id) {
     try {
       await authedFetch('/owner/orders/' + id + '/advance', { method: 'POST' }, ownerToken());
@@ -2599,6 +2720,30 @@
     if (!list) return;
     list.innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
   }).catch(() => {});
+
+  // ---------------- PWA: namestitev na domači zaslon (brez app store) ----------------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+  let deferredInstallPrompt = null;
+  const installBtn = document.getElementById('installAppBtn');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (installBtn) installBtn.style.display = '';
+  });
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      installBtn.style.display = 'none';
+    });
+  }
+  window.addEventListener('appinstalled', () => { if (installBtn) installBtn.style.display = 'none'; });
 
   // ---------------- footer: kontakt / pravno (zložljivi zavihki, privzeto zaprto) ----------------
   document.querySelectorAll('.footer-tab-btn').forEach((btn) => {
