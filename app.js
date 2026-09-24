@@ -908,7 +908,7 @@
       </div>` : ''}
       <div class="modal-close-row">
         <button class="secondary-btn" type="button" onclick="closeModal()">${t('cancel')}</button>
-        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__confirmAddToCart('${itemId}')">${t('add_to_cart')}</button>
+        <button class="mini-btn primary add-to-cart-btn" type="button" onclick="window.__confirmAddToCart('${itemId}')">${t('add_to_cart')}</button>
       </div>
     `);
   }
