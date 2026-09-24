@@ -155,7 +155,7 @@ main{padding-block:28px 60px;}
 .mi-allergens{font-size:.72rem; color:var(--ink-soft); margin-top:3px;}
 .mi-unavailable .mi-name{color:var(--ink-soft); text-decoration:line-through; text-decoration-color:var(--line);}
 .mi-unavailable-label{font-size:.72rem; color:var(--red); font-weight:600;}
-.mi-add{border:1px solid var(--accent); background:var(--bg-elev); color:var(--accent); font-weight:700; width:32px; height:32px; border-radius:9px; font-size:1.1rem; line-height:1; flex-shrink:0;}
+.mi-add{border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); font-weight:700; width:40px; height:40px; border-radius:11px; font-size:1.4rem; line-height:1; flex-shrink:0;}
 .mi-stepper{display:flex; align-items:center; gap:8px;}
 .mi-stepper button{width:28px; height:28px; border-radius:8px; border:1px solid var(--line); background:var(--bg-sunken); color:var(--ink); font-weight:700;}
 .mi-stepper span{min-width:16px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums;}
@@ -204,7 +204,7 @@ main{padding-block:28px 60px;}
 .choice-btn.selected{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
 .text-input,.select-input,textarea.text-input{width:100%; padding:9px 11px; border-radius:9px; border:1px solid var(--line); background:var(--bg-sunken); color:var(--ink); font-size:.9rem;}
 textarea.text-input{resize:vertical; min-height:70px;}
-.primary-btn{width:100%; margin-top:16px; background:var(--accent); color:var(--accent-ink); border:none; font-weight:700; padding:12px; border-radius:10px; font-size:.94rem;}
+.primary-btn{width:100%; margin-top:16px; background:var(--accent); color:var(--accent-ink); border:none; font-weight:700; padding:15px; border-radius:10px; font-size:1.04rem;}
 .primary-btn:disabled{opacity:.5; cursor:not-allowed;}
 .secondary-btn{background:var(--bg-sunken); color:var(--ink); border:1px solid var(--line); font-weight:700; padding:9px 14px; border-radius:9px; font-size:.84rem;}
 .danger-btn{background:var(--red-soft); color:var(--red); border:1px solid transparent; font-weight:700; padding:7px 12px; border-radius:8px; font-size:.78rem;}
@@ -252,6 +252,7 @@ textarea.text-input{resize:vertical; min-height:70px;}
 .order-actions{display:flex; gap:6px; margin-top:10px;}
 .mini-btn{flex:1; border:1px solid var(--line); background:var(--bg-sunken); color:var(--ink); font-size:.78rem; font-weight:700; padding:7px; border-radius:8px;}
 .mini-btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+.add-to-cart-btn{font-size:.92rem; padding:12px 20px !important;}
 .mini-btn.ghost{background:transparent;}
 .empty-col{color:var(--ink-soft); font-size:.82rem; padding:10px 4px;}
 .order-items-line{font-size:.84rem; color:var(--ink-soft); margin:2px 0 6px;}
