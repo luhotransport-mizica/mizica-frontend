@@ -126,6 +126,8 @@
     login_sub: { sl: 'Prijavite se, da vidite zgodovino svojih naročil.', en: 'Log in to see your order history.' },
     register_title: { sl: 'Registracija', en: 'Sign up' },
     register_sub: { sl: 'Ustvarite račun — hitreje boste naročali in videli zgodovino naročil.', en: 'Create an account — order faster and see your order history.' },
+    register_consent: { sl: 'Strinjam se s <a href="#" id="registerTermsLink">Splošnimi pogoji poslovanja</a> in potrjujem, da sem seznanjen s <a href="#" id="registerPrivacyLink">Politiko zasebnosti</a>.', en: 'I agree to the <a href="#" id="registerTermsLink">Terms and Conditions</a> and confirm that I have read the <a href="#" id="registerPrivacyLink">Privacy Policy</a>.' },
+    err_consent: { sl: 'Za registracijo se morate strinjati s splošnimi pogoji poslovanja in politiko zasebnosti.', en: 'To register, you must agree to the terms and conditions and privacy policy.' },
     to_register: { sl: 'Nimate računa? Registrirajte se', en: "Don't have an account? Sign up" },
     to_login: { sl: 'Že imate račun? Prijavite se', en: 'Already have an account? Log in' },
     field_email: { sl: 'E-pošta', en: 'Email' },
@@ -235,6 +237,8 @@
     setText('accountTelefonLbl', 'field_phone');
     setText('accountKrajLbl', 'field_place');
     setPh('accountKraj', 'field_place_ph');
+    const registerConsentTextEl = document.getElementById('registerConsentText');
+    if (registerConsentTextEl) registerConsentTextEl.innerHTML = t('register_consent');
     setText('accountLogoutBtn', 'logout');
     setText('cartFabLabel', 'cart_fab_label');
     setText('accountDataTitle', 'my_data');
@@ -1489,6 +1493,10 @@
     errEl.textContent = '';
     const email = document.getElementById('accountEmail').value.trim();
     const password = document.getElementById('accountPassword').value;
+    if (accountMode === 'register') {
+      const consentEl = document.getElementById('registerConsent');
+      if (consentEl && !consentEl.checked) { errEl.textContent = t('err_consent'); return; }
+    }
     try {
       if (accountMode === 'register') {
         const ime = document.getElementById('accountIme').value.trim();
@@ -1518,6 +1526,17 @@
       errEl.textContent = err.message;
     }
   });
+
+  const registerConsentTextEl2 = document.getElementById('registerConsentText');
+  if (registerConsentTextEl2) {
+    registerConsentTextEl2.addEventListener('click', (e) => {
+      const a = e.target.closest('a');
+      if (!a) return;
+      e.preventDefault();
+      if (a.id === 'registerTermsLink') document.querySelector('[data-ftarget="footerPogoji"]')?.click();
+      if (a.id === 'registerPrivacyLink') document.querySelector('[data-ftarget="footerZasebnost"]')?.click();
+    });
+  }
 
   document.getElementById('accountLogoutBtn').addEventListener('click', async () => {
     await sb.auth.signOut();
