@@ -408,8 +408,9 @@ table.admin-table{width:100%; border-collapse:collapse; font-size:.86rem; min-wi
 .radio-row{display:flex; gap:14px; flex-wrap:wrap;}
 .radio-item{display:flex; align-items:center; gap:6px; font-size:.86rem;}
 
-.cart-fab{position:fixed; right:20px; bottom:calc(env(safe-area-inset-bottom,0px) + 20px); z-index:60; background:var(--accent); color:var(--accent-ink); border:none; border-radius:999px; padding:13px 20px; font-weight:700; font-size:.88rem; box-shadow:var(--shadow); display:none; align-items:center; gap:8px;}
+.cart-fab{position:fixed; right:20px; bottom:calc(env(safe-area-inset-bottom,0px) + 20px); z-index:60; background:var(--accent); color:var(--accent-ink); border:none; border-radius:999px; padding:13px 20px; font-weight:700; font-size:.88rem; box-shadow:var(--shadow); display:none; align-items:center; gap:8px; cursor:pointer; transition:transform .12s ease,filter .12s ease;}
 .cart-fab.show{display:inline-flex;}
+.cart-fab:hover{filter:brightness(1.08); transform:translateY(-1px);}
 .cart-fab-badge{background:rgba(0,0,0,.18); border-radius:999px; padding:2px 8px; font-variant-numeric:tabular-nums;}
 
 .confirm-wrap{max-width:520px; margin:0 auto;}
