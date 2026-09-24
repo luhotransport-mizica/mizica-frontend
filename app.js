@@ -128,6 +128,9 @@
     register_sub: { sl: 'Ustvarite račun — hitreje boste naročali in videli zgodovino naročil.', en: 'Create an account — order faster and see your order history.' },
     register_consent: { sl: 'Strinjam se s <a href="#" id="registerTermsLink">Splošnimi pogoji poslovanja</a> in potrjujem, da sem seznanjen s <a href="#" id="registerPrivacyLink">Politiko zasebnosti</a>.', en: 'I agree to the <a href="#" id="registerTermsLink">Terms and Conditions</a> and confirm that I have read the <a href="#" id="registerPrivacyLink">Privacy Policy</a>.' },
     err_consent: { sl: 'Za registracijo se morate strinjati s splošnimi pogoji poslovanja in politiko zasebnosti.', en: 'To register, you must agree to the terms and conditions and privacy policy.' },
+    forgot_password: { sl: 'Pozabljeno geslo?', en: 'Forgot password?' },
+    forgot_password_need_email: { sl: 'Najprej vpišite e-pošto zgoraj.', en: 'Please enter your email above first.' },
+    forgot_password_sent: { sl: 'Če e-pošta obstaja, boste prejeli povezavo za obnovitev gesla.', en: 'If that email exists, you will receive a password reset link.' },
     to_register: { sl: 'Nimate računa? Registrirajte se', en: "Don't have an account? Sign up" },
     to_login: { sl: 'Že imate račun? Prijavite se', en: 'Already have an account? Log in' },
     field_email: { sl: 'E-pošta', en: 'Email' },
@@ -231,6 +234,7 @@
     setText('accountFormSub', accMode === 'login' ? 'login_sub' : 'register_sub');
     setText('accountSubmitBtn', accMode === 'login' ? 'login_title' : 'register_title');
     setText('accountToggleModeBtn', accMode === 'login' ? 'to_register' : 'to_login');
+    setText('accountForgotBtn', 'forgot_password');
     setText('accountEmailLbl', 'field_email');
     setText('accountPasswordLbl', 'field_password');
     setText('accountImeLbl', 'field_name');
@@ -1484,6 +1488,7 @@
     document.getElementById('accountRegisterFields').style.display = accountMode === 'register' ? 'block' : 'none';
     document.getElementById('accountSubmitBtn').textContent = t(accountMode === 'login' ? 'login_title' : 'register_title');
     document.getElementById('accountToggleModeBtn').textContent = t(accountMode === 'login' ? 'to_register' : 'to_login');
+    document.getElementById('accountForgotBtn').style.display = accountMode === 'login' ? '' : 'none';
     document.getElementById('accountLoginError').textContent = '';
   });
 
@@ -1525,6 +1530,13 @@
     } catch (err) {
       errEl.textContent = err.message;
     }
+  });
+
+  document.getElementById('accountForgotBtn').addEventListener('click', async () => {
+    const email = document.getElementById('accountEmail').value.trim();
+    if (!email) { showToast(t('forgot_password_need_email')); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email);
+    showToast(error ? (uiLang === 'en' ? 'Error: ' : 'Napaka: ') + error.message : t('forgot_password_sent'));
   });
 
   const registerConsentTextEl2 = document.getElementById('registerConsentText');
