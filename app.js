@@ -10,6 +10,13 @@
     return (Number(n) || 0).toLocaleString('sl-SI', { style: 'currency', currency: 'EUR' });
   }
 
+  // Slovenski zapis stopnje DDV za skrbniski del/obracune/izvoze: decimalna vejica, presledek pred %.
+  function formatVatSl(rate) {
+    const n = Number(rate);
+    const str = (Math.round(n * 100) / 100).toString();
+    return str.replace('.', ',') + ' %';
+  }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
@@ -71,6 +78,7 @@
     cart_empty: { sl: 'Košarica je prazna. Dodajte jedi iz menija.', en: 'Your cart is empty. Add items from the menu.' },
     cart_delivery_fee: { sl: 'Strošek dostave', en: 'Delivery fee' },
     cart_total: { sl: 'Skupaj', en: 'Total' },
+    cart_vat_footer: { sl: 'Vse cene vključujejo DDV. Račun izda izbrana gostilna.', en: 'All prices include VAT. The receipt is issued by the selected restaurant.' },
     cart_vat_note: { sl: 'Plačilo neposredno gostilni ob prevzemu/dostavi.<br>Mizica ne obdeluje plačil.', en: 'Payment goes directly to the restaurant on pickup/delivery.<br>Mizica does not process payments.' },
     cart_discount_code_label: { sl: 'Koda za popust', en: 'Discount code' },
     cart_discount_code_ph: { sl: 'Vpišite kodo', en: 'Enter code' },
@@ -80,6 +88,7 @@
     cart_delivery_address_label: { sl: 'Naslov za dostavo', en: 'Delivery address' },
     cart_delivery_address_ph: { sl: 'Ulica in hišna št., pošta', en: 'Street and house no., postal town' },
     cart_below_min: { sl: 'Za dostavo je potreben nakup najmanj', en: 'Minimum order for delivery is' },
+    mi_vat_included: { sl: 'Cena vključuje DDV.', en: 'Price includes VAT.' },
     cart_time_slot_label: { sl: 'Termin prevzema', en: 'Pickup time' },
     cart_time_slot_ph: { sl: 'Izberite termin...', en: 'Choose a time...' },
     cart_payment_label: { sl: 'Način plačila', en: 'Payment method' },
@@ -850,7 +859,8 @@
           <div>
             <div class="mi-name">${esc(it.name)} ${it.daily ? `<span class="pill-daily">${t('daily_pill')}</span>` : ''}</div>
             ${it.description ? `<div class="mi-description">${esc(it.description)}</div>` : ''}
-            <div class="mi-price-row"><span class="mi-price">${itemPriceLabel(it)}</span><span class="mi-ddv">DDV ${it.vat_rate}%</span></div>
+            <div class="mi-price-row"><span class="mi-price">${itemPriceLabel(it)}</span></div>
+            <div class="mi-vat-note">${t('mi_vat_included')}</div>
             ${it.allergens ? `<div class="mi-allergens">${t('allergens_label')} ${esc(it.allergens)}</div>` : ''}
             ${unavailable ? `<div class="mi-unavailable-label">${t('unavailable_label')}</div>` : ''}
           </div>
@@ -989,6 +999,7 @@
       ${pointsDiscount > 0 ? `<div class="cart-sub cart-discount-row"><span>${t('confirm_loyalty')} (${cart.redeemPoints})</span><span>&minus;${eur(pointsDiscount)}</span></div>` : ''}
       ${deliveryFee ? `<div class="cart-sub"><span>${t('cart_delivery_fee')}</span><span>${eur(deliveryFee)}</span></div>` : ''}
       <div class="cart-total"><span>${t('cart_total')}</span><span>${eur(total)}</span></div>
+      <div class="cart-vat-note">${t('cart_vat_footer')}</div>
       <div class="cart-vat-note">${t('cart_vat_note')}</div>
 
       <div class="field-group">
@@ -1939,7 +1950,7 @@
     const rates = [...ratesSet].sort((a, b) => a - b);
 
     const header = ['Datum', 'Ura', 'Stranka', 'Telefon', 'Naslov', 'Način', 'Plačilo', 'Jedi',
-      ...rates.flatMap((r) => [`Osnova ${r}% (€)`, `DDV ${r}% (€)`]),
+      ...rates.flatMap((r) => [`Osnova ${formatVatSl(r)} (€)`, `DDV ${formatVatSl(r)} (€)`]),
       'Popust (€)', 'Dostava (€)', 'Skupaj (€)', 'Status'];
 
     const lines = [header.map(csvCell).join(';')];
@@ -2219,7 +2230,7 @@
       <div class="mm-row" id="mmrow-${it.id}">
         <div class="mm-name">
           ${it.photo_url ? `<img class="mm-photo" src="${esc(it.photo_url)}" alt="">` : ''}
-          ${esc(it.name)} <span class="mi-ddv">${eur(it.price)} &middot; DDV ${it.vat_rate}%</span> ${it.daily ? '<span class="pill-daily">Dnevno</span>' : ''}
+          ${esc(it.name)} <span class="mi-ddv">${eur(it.price)} &middot; DDV ${formatVatSl(it.vat_rate)}</span> ${it.daily ? '<span class="pill-daily">Dnevno</span>' : ''}
         </div>
         <div class="mm-row-actions">
           <button class="secondary-btn" type="button" onclick="window.__editVariantsAddonsForm('${it.id}')">${optsLabel}</button>
@@ -2334,8 +2345,8 @@
           <input class="text-input" id="if-name-${opts.key}" placeholder="Ime jedi" value="${esc(it.name || '')}">
           <input class="text-input" id="if-price-${opts.key}" type="number" step="0.01" placeholder="Cena €" value="${it.price != null ? it.price : ''}">
           <select class="select-input" id="if-vat-${opts.key}">
-            <option value="9.5" ${it.vat_rate == 9.5 ? 'selected' : ''}>DDV 9.5%</option>
-            <option value="22" ${it.vat_rate == 22 ? 'selected' : ''}>DDV 22%</option>
+            <option value="9.5" ${it.vat_rate == 9.5 ? 'selected' : ''}>DDV 9,5 %</option>
+            <option value="22" ${it.vat_rate == 22 ? 'selected' : ''}>DDV 22 %</option>
           </select>
         </div>
         <div class="field-group">
@@ -3290,7 +3301,7 @@
     if (r.billing_model === 'najemnina' || r.billing_model === 'oboje') rows.push(`<tr><td>Naročnina</td><td>${eur(r.najemnina)}</td></tr>`);
     if (r.billing_model === 'provizija' || r.billing_model === 'oboje') rows.push(`<tr><td>Provizija (${r.provizija}% od neto prodaje hrane/pijače)</td><td>${eur(x.osnova * r.provizija / 100)}</td></tr>`);
     rows.push(`<tr><td>Osnova za vaš račun</td><td>${eur(feeOsnova)}</td></tr>`);
-    rows.push(`<tr><td>DDV ${SERVICE_DDV}%</td><td>${eur(feeDdv)}</td></tr>`);
+    rows.push(`<tr><td>DDV ${formatVatSl(SERVICE_DDV)}</td><td>${eur(feeDdv)}</td></tr>`);
     rows.push(`<tr class="print-total-row"><td>Skupaj za plačilo</td><td>${eur(feeTotal)}</td></tr>`);
 
     const body = `
