@@ -1029,6 +1029,13 @@
         <input class="text-input" id="cartPhone" type="tel" value="${esc(cart.phone || (customerToken() ? (customerMeta().telefon || '') : ''))}">
       </div>
 
+      <div class="field-group">
+      <label class="checkbox-label" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.4;">
+      <input type="checkbox" id="cartConsent" style="margin-top:3px;">
+      <span>Strinjam se s splosnimi pogoji poslovanja in politiko zasebnosti.</span>
+      </label>
+      </div>
+      
       <div class="field-error" id="cartError"></div>
       <button class="primary-btn" type="button" id="placeOrderBtn" ${!r.odprto_zdaj ? 'disabled' : ''}>${t('cart_place_order')}</button>
     `;
@@ -1074,6 +1081,7 @@
     const phone = document.getElementById('cartPhone').value.trim();
     const timeSlot = document.getElementById('cartTimeSlot').value;
     const addressEl = document.getElementById('cartAddress');
+    const consent = document.getElementById('cartConsent').checked;
     const address = addressEl ? addressEl.value.trim() : '';
     cart.customerName = name; cart.phone = phone; cart.timeSlot = timeSlot; cart.address = address;
 
@@ -1082,6 +1090,7 @@
     if (!timeSlot) return (errEl.textContent = t('err_timeslot'));
     if (cart.type === 'dostava' && !address) return (errEl.textContent = t('err_address'));
     if (!cart.payment) return (errEl.textContent = t('err_payment'));
+    if (!consent) return (errEl.textContent = 'Za oddajo narocila je potrebno soglasje s pogoji poslovanja in politiko zasebnosti.');
 
     const items = Object.values(cart.lines).map((l) => ({ item_id: l.itemId, qty: l.qty, variant_id: l.variantId || undefined, addon_ids: l.addonIds && l.addonIds.length ? l.addonIds : undefined }));
     if (!items.length) return (errEl.textContent = t('err_cart_empty'));
@@ -1093,6 +1102,7 @@
         restaurant_id: currentRestaurant.id, customer_name: name, phone,
         type: cart.type, address: cart.type === 'dostava' ? address : undefined,
         time_slot: timeSlot, payment: cart.payment, items,
+        consent,
         discount_code: cart.discountCode || undefined,
         redeem_points: cart.redeemPoints || undefined
       };
