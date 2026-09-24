@@ -792,7 +792,7 @@
       </div>
       ${!r.odprto_zdaj ? `<div class="closed-banner">${t('closed_banner')}</div>` : ''}
       <div class="rd-body">
-        <div>${menuHtml}${renderReviewsSection(r)}</div>
+        <div>${menuHtml}${renderReviewsSection(r)}${renderSellerInfoSection(r)}</div>
         <div class="cart-panel" id="cartPanel"></div>
       </div>
     `;
@@ -810,6 +810,23 @@
             ${rv.comment ? `<p class="review-comment">${esc(rv.comment)}</p>` : ''}
           </div>
         `).join('') : `<p class="section-sub">${t('no_reviews')}</p>`}
+      </div>
+    `;
+  }
+
+  function renderSellerInfoSection(r) {
+    if (!r.pravni_naziv) return '';
+    return `
+      <div class="reviews-section seller-info-section">
+        <h3>Podatki o prodajalcu</h3>
+        <p><strong>${esc(r.pravni_naziv)}</strong></p>
+        ${r.poslovni_naslov ? `<p>${esc(r.poslovni_naslov)}</p>` : ''}
+        ${r.maticna_stevilka ? `<p>Matična številka: ${esc(r.maticna_stevilka)}</p>` : ''}
+        ${r.davcna_stevilka ? `<p>Davčna številka: ${esc(r.davcna_stevilka)}</p>` : ''}
+        <p>Zavezanec za DDV: ${r.zavezanec_ddv ? 'Da' : 'Ne'}</p>
+        ${r.telefon ? `<p>Tel.: ${esc(r.telefon)}</p>` : ''}
+        ${r.email ? `<p>E-pošta: ${esc(r.email)}</p>` : ''}
+        <p class="section-sub" style="margin-top:10px;">Prodajalec hrane in pijače ter izvajalec prevzema oziroma dostave je zgoraj navedena gostilna. Mizica nastopa izključno kot posredniška platforma ter ne pripravlja hrane, ne izvaja dostave in ne sprejema plačil kupcev.</p>
       </div>
     `;
   }
@@ -2485,6 +2502,16 @@
         <h4 style="margin-top:18px;">Zaprti dnevi</h4>
         <div class="closed-dates" id="closedDatesWrap">${(r.closedDates||[]).map((d) => `<span class="closed-chip">${d}<button type="button" onclick="window.__removeClosedDate('${d}')">&times;</button></span>`).join('') || '<span class="section-sub">Trenutno ni zaprtih dni.</span>'}</div>
         <div class="add-date-row"><input class="text-input" type="date" id="newClosedDate"><button class="secondary-btn" type="button" onclick="window.__addClosedDate()">Dodaj</button></div>
+      </div>
+      <div class="settings-block">
+        <h4>Podatki o prodajalcu (prikazano na strani gostilne)</h4>
+        <p class="section-sub" style="margin-bottom:8px;">Ti podatki so zakonsko obvezni in vidni kupcem na strani vaše gostilne.</p>
+        <div class="settings-row"><span class="lbl">Pravni naziv</span><input class="text-input" style="max-width:260px;" value="${esc(r.pravni_naziv||'')}" placeholder="npr. Gostilna Pri Lipi, d.o.o." onchange="window.__updateOwnerSetting('pravni_naziv',this.value)"></div>
+        <div class="settings-row" style="align-items:flex-start;"><span class="lbl" style="padding-top:8px;">Poslovni naslov</span><input class="text-input" style="max-width:260px;" value="${esc(r.poslovni_naslov||'')}" placeholder="Ulica in hišna št., pošta" onchange="window.__updateOwnerSetting('poslovni_naslov',this.value)"></div>
+        <div class="settings-row"><span class="lbl">Matična številka</span><input class="text-input" style="max-width:160px;" value="${esc(r.maticna_stevilka||'')}" onchange="window.__updateOwnerSetting('maticna_stevilka',this.value)"></div>
+        <div class="settings-row"><span class="lbl">Davčna številka</span><input class="text-input" style="max-width:160px;" value="${esc(r.davcna_stevilka||'')}" onchange="window.__updateOwnerSetting('davcna_stevilka',this.value)"></div>
+        <div class="settings-row"><label class="checkbox-item"><input type="checkbox" ${r.zavezanec_ddv?'checked':''} onchange="window.__updateOwnerSetting('zavezanec_ddv',this.checked)"> Zavezanec za DDV</label></div>
+        <div class="settings-row"><span class="lbl">Telefon</span><input class="text-input" style="max-width:200px;" type="tel" value="${esc(r.telefon||'')}" onchange="window.__updateOwnerSetting('telefon',this.value)"></div>
       </div>
       <div class="settings-block">
         <h4>Prevzem in dostava</h4>
