@@ -1021,13 +1021,13 @@
         ${belowMin ? `<p class="warn-note">${t('cart_below_min')} ${eur(r.dostava_min_znesek)}.</p>` : ''}
       </div>` : ''}
 
-      <div class="field-group">
+      ${cart.type === 'prevzem' ? `<div class="field-group">
         <label class="field-label">${t('cart_time_slot_label')}</label>
         <select class="select-input" id="cartTimeSlot">
           <option value="">${t('cart_time_slot_ph')}</option>
           ${slots.map((s) => `<option value="${s}" ${cart.timeSlot === s ? 'selected' : ''}>${s}</option>`).join('')}
         </select>
-      </div>
+      </div>` : ''}
 
       ${paymentOptions.length > 1 ? `
       <div class="field-group">
@@ -1104,7 +1104,7 @@
 
     if (!name) return (errEl.textContent = t('err_name'));
     if (!phone) return (errEl.textContent = t('err_phone'));
-    if (!timeSlot) return (errEl.textContent = t('err_timeslot'));
+    if (cart.type === 'prevzem' && !timeSlot) return (errEl.textContent = t('err_timeslot'));
     if (cart.type === 'dostava' && !address) return (errEl.textContent = t('err_address'));
     if (!cart.payment) return (errEl.textContent = t('err_payment'));
     if (!consent) return (errEl.textContent = 'Za oddajo narocila je potrebno soglasje s pogoji poslovanja in politiko zasebnosti.');
@@ -1118,7 +1118,7 @@
       const orderBody = {
         restaurant_id: currentRestaurant.id, customer_name: name, phone,
         type: cart.type, address: cart.type === 'dostava' ? address : undefined,
-        time_slot: timeSlot, payment: cart.payment, items,
+        time_slot: cart.type === 'prevzem' ? timeSlot : undefined, payment: cart.payment, items,
         consent,
         discount_code: cart.discountCode || undefined,
         redeem_points: cart.redeemPoints || undefined
@@ -1793,7 +1793,7 @@
         <div class="order-meta-row">
           <span class="tag">${o.type === 'dostava' ? 'Dostava' : 'Prevzem'}</span>
           <span class="tag">${o.payment === 'kartica' ? 'Kartica' : 'Gotovina'}</span>
-          <span class="tag gold">${esc(o.time_slot || '')}</span>
+          ${o.time_slot ? `<span class="tag gold">${esc(o.time_slot)}</span>` : ''}
         </div>
         <div class="order-items">${items}</div>
         ${o.address ? `<div class="order-items">Naslov: ${esc(o.address)}</div>` : ''}
@@ -1842,7 +1842,7 @@
       <h2>${esc(ownerRestaurant ? ownerRestaurant.name : 'Naročilo')}</h2>
       <p class="p-sub">${new Date(o.placed_at).toLocaleString('sl-SI', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
       <p class="p-meta"><strong>${esc(o.customer_name)}</strong> &middot; Tel: ${esc(o.phone)}</p>
-      <p class="p-meta">${o.type === 'dostava' ? 'Dostava' : 'Prevzem'} &middot; Termin: ${esc(o.time_slot || '')}</p>
+      <p class="p-meta">${o.type === 'dostava' ? 'Dostava' : 'Prevzem'}${o.time_slot ? ` &middot; Termin: ${esc(o.time_slot)}` : ''}</p>
       ${o.address ? `<p class="p-meta">Naslov: ${esc(o.address)}</p>` : ''}
       <p class="p-meta">Plačilo: ${o.payment === 'kartica' ? 'Kartica' : 'Gotovina'} ob ${o.type === 'dostava' ? 'dostavi' : 'prevzemu'}</p>
       <div style="margin-top:18px;">${items}</div>
