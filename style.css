@@ -105,6 +105,7 @@ main{padding-block:28px 60px;}
 .r-rating-count{color:var(--ink-soft);}
 .reviews-section{margin-top:32px; padding-top:20px; border-top:1px solid var(--line);}
 .reviews-section h3{font-size:1.05rem; margin-bottom:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.seller-info-section p{margin:4px 0; font-size:.92rem;}
 .review-row{padding:12px 0; border-bottom:1px solid var(--line);}
 .review-row:last-child{border-bottom:none;}
 .review-row-top{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
