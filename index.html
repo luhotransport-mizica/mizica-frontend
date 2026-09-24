@@ -163,6 +163,10 @@
             <input class="text-input" type="tel" id="accountTelefon" autocomplete="tel">
             <label class="field-label" id="accountKrajLbl" style="margin-top:10px;">Kraj</label>
             <input class="text-input" type="text" id="accountKraj" placeholder="npr. Brežice" autocomplete="address-level2" list="siPlacesList">
+            <div class="checkbox-label" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.4;margin-top:12px;">
+              <input type="checkbox" id="registerConsent" style="margin-top:3px;">
+              <span id="registerConsentText"></span>
+            </div>
           </div>
           <div class="field-error" id="accountLoginError"></div>
           <button class="primary-btn" type="submit" id="accountSubmitBtn">Prijava</button>
