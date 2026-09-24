@@ -1060,7 +1060,7 @@
       <div class="field-group">
       <label class="checkbox-label" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.4;">
       <input type="checkbox" id="cartConsent" style="margin-top:3px;">
-      <span>Strinjam se s splosnimi pogoji poslovanja in politiko zasebnosti.</span>
+      <span>Strinjam se s splošnimi pogoji poslovanja in politiko zasebnosti.</span>
       </label>
       </div>
       
