@@ -80,7 +80,7 @@
     cart_delivery_address_label: { sl: 'Naslov za dostavo', en: 'Delivery address' },
     cart_delivery_address_ph: { sl: 'Ulica in hišna št., pošta', en: 'Street and house no., postal town' },
     cart_below_min: { sl: 'Za dostavo je potreben nakup najmanj', en: 'Minimum order for delivery is' },
-    cart_time_slot_label: { sl: 'Termin prevzema/dostave', en: 'Pickup/delivery time' },
+    cart_time_slot_label: { sl: 'Termin prevzema', en: 'Pickup time' },
     cart_time_slot_ph: { sl: 'Izberite termin...', en: 'Choose a time...' },
     cart_payment_label: { sl: 'Način plačila', en: 'Payment method' },
     cart_name_label: { sl: 'Ime in priimek', en: 'Full name' },
