@@ -401,6 +401,11 @@
   });
   document.getElementById('backToMarket').addEventListener('click', () => goToView('market'));
 
+  document.getElementById('cartFab').addEventListener('click', () => {
+    const panel = document.getElementById('cartPanel');
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
   // =================================================================
   // MARKETPLACE
   // =================================================================
