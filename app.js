@@ -426,7 +426,7 @@
     if (name === 'account') initAccountView();
     clearInterval(accountOrdersPollTimer);
     if (name === 'account') {
-      accountOrdersPollTimer = setInterval(refreshAccountOrdersQuiet, 15000);
+      accountOrdersPollTimer = setInterval(refreshAccountOrdersQuiet, 5000);
     }
   }
   document.querySelectorAll('.viewnav button[data-view]').forEach((b) => {
@@ -1216,8 +1216,25 @@
     clearInterval(confirmTimer);
     const cancelWindow = order.cancel_window_ms || 20000;
     const placedAt = new Date(order.placed_at || Date.now()).getTime();
+    let tickCount = 0;
+    async function checkLiveStatus() {
+      if (order.status !== 'novo') return;
+      try {
+        const fresh = await apiFetch(`/orders/${order.id}`);
+        if (fresh && fresh.status && fresh.status !== order.status) {
+          order.status = fresh.status;
+          if (order.status !== 'novo') {
+            clearInterval(confirmTimer);
+            if (customerToken() && currentView === 'confirm') { scrollToOrdersOnNextRender = true; goToView('account'); }
+            else { draw(); }
+          }
+        }
+      } catch (e) {}
+    }
 
     function draw() {
+      tickCount++;
+      if (tickCount % 5 === 0) checkLiveStatus();
       const elapsed = Date.now() - placedAt;
       const remaining = Math.max(0, cancelWindow - elapsed);
       const canCancel = order.status === 'novo' && remaining > 0;
