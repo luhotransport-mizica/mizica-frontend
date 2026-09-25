@@ -21,6 +21,33 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // ---------------- alergeni: standardni seznam (14, po Uredbi EU 1169/2011) — kode morajo ustrezati ALLOWED_ALLERGEN_CODES v backend owner.js ----------------
+  const ALLERGEN_LIST = [
+    { code: 'gluten', sl: 'Gluten', en: 'Gluten' },
+    { code: 'raki', sl: 'Raki', en: 'Crustaceans' },
+    { code: 'jajca', sl: 'Jajca', en: 'Eggs' },
+    { code: 'ribe', sl: 'Ribe', en: 'Fish' },
+    { code: 'arasidi', sl: 'Arašidi', en: 'Peanuts' },
+    { code: 'soja', sl: 'Zrnje soje', en: 'Soybeans' },
+    { code: 'mleko', sl: 'Mleko/laktoza', en: 'Milk/lactose' },
+    { code: 'oreski', sl: 'Oreščki', en: 'Nuts' },
+    { code: 'zelena', sl: 'Zelena', en: 'Celery' },
+    { code: 'gorcica', sl: 'Gorčično seme', en: 'Mustard seeds' },
+    { code: 'sezam', sl: 'Sezamovo seme', en: 'Sesame seeds' },
+    { code: 'so2', sl: 'Žveplov dioksid', en: 'Sulphur dioxide' },
+    { code: 'volcji_bob', sl: 'Volčji bob', en: 'Lupin' },
+    { code: 'mehkuzci', sl: 'Mehkužci', en: 'Molluscs' }
+  ];
+  function allergenLabel(code) {
+    const a = ALLERGEN_LIST.find((x) => x.code === code);
+    if (!a) return code;
+    return uiLang === 'en' ? a.en : a.sl;
+  }
+  function allergenSummaryText(codes) {
+    if (!codes || !codes.length) return 'Alergeni (neobvezno)';
+    return 'Alergeni: ' + codes.map((c) => { const a = ALLERGEN_LIST.find((x) => x.code === c); return a ? a.sl : c; }).join(', ');
+  }
+
   // ---------------- jezik (SI/EN) — samo stran za stranke; gostilna in skrbnik ostaneta v slovenščini ----------------
   // Vsebina, ki jo vnesejo gostilne (imena, jedi, opisi, naslovi), se NE prevaja — prevaja se samo
   // besedilo vmesnika. Znane napake s strežnika (v slovenščini) prevedemo prek ERR_MAP, če prevod obstaja.
@@ -67,6 +94,7 @@
     price_from: { sl: 'od ', en: 'from ' },
     daily_pill: { sl: 'Dnevno', en: 'Daily' },
     allergens_label: { sl: 'Alergeni:', en: 'Allergens:' },
+    allergens_toggle: { sl: 'Alergeni', en: 'Allergens' },
     unavailable_label: { sl: 'Trenutno ni na voljo', en: 'Currently unavailable' },
     in_cart_label: { sl: 'V košarici:', en: 'In cart:' },
     variant_size_label: { sl: 'Velikost', en: 'Size' },
@@ -875,7 +903,12 @@
             ${it.description ? `<div class="mi-description">${esc(it.description)}</div>` : ''}
             <div class="mi-price-row"><span class="mi-price">${itemPriceLabel(it)}</span></div>
             <div class="mi-vat-note">${t('mi_vat_included')}</div>
-            ${it.allergens ? `<div class="mi-allergens">${t('allergens_label')} ${esc(it.allergens)}</div>` : ''}
+            ${(it.allergen_codes && it.allergen_codes.length) ? `
+            <div class="mi-allergens">
+              <button type="button" class="allergens-toggle-btn" onclick="this.nextElementSibling.classList.toggle('open')">${t('allergens_toggle')} &#9662;</button>
+              <div class="allergens-panel">${it.allergen_codes.map((c) => esc(allergenLabel(c))).join(', ')}</div>
+            </div>
+            ` : (it.allergens ? `<div class="mi-allergens">${t('allergens_label')} ${esc(it.allergens)}</div>` : '')}
             ${unavailable ? `<div class="mi-unavailable-label">${t('unavailable_label')}</div>` : ''}
           </div>
         </div>
@@ -2402,7 +2435,10 @@
           <input class="text-input" id="if-description-${opts.key}" placeholder="Sestavine / opis (neobvezno)" value="${esc(it.description || '')}">
         </div>
         <div class="field-group">
-          <input class="text-input" id="if-allergens-${opts.key}" placeholder="Alergeni (neobvezno)" value="${esc(it.allergens || '')}">
+          <button type="button" class="text-input allergen-toggle-btn" id="if-allergens-btn-${opts.key}" onclick="this.nextElementSibling.classList.toggle('open')">${esc(allergenSummaryText(it.allergen_codes || []))} &#9662;</button>
+          <div class="allergen-panel">
+            ${ALLERGEN_LIST.map((a) => `<label class="chip-check allergen-chip"><input type="checkbox" class="allergen-cb-${opts.key}" value="${a.code}" ${(it.allergen_codes || []).includes(a.code) ? 'checked' : ''} onchange="window.__refreshAllergenSummary('${opts.key}')"> ${esc(a.sl)}</label>`).join('')}
+          </div>
         </div>
         <div class="field-group">
           <label class="field-label">Fotografija jedi (neobvezno)</label>
@@ -2472,21 +2508,28 @@
   }
   window.__cancelItemForm = cancelItemForm;
 
+  function refreshAllergenSummary(key) {
+    const codes = Array.from(document.querySelectorAll('.allergen-cb-' + key + ':checked')).map((el) => el.value);
+    const btn = document.getElementById('if-allergens-btn-' + key);
+    if (btn) btn.textContent = allergenSummaryText(codes) + ' ▾';
+  }
+  window.__refreshAllergenSummary = refreshAllergenSummary;
+
   async function saveItemForm(categoryId, itemId, key) {
     const name = document.getElementById('if-name-' + key).value.trim();
     const price = document.getElementById('if-price-' + key).value;
     const vat_rate = document.getElementById('if-vat-' + key).value;
     const description = document.getElementById('if-description-' + key).value.trim();
-    const allergens = document.getElementById('if-allergens-' + key).value.trim();
+    const allergen_codes = Array.from(document.querySelectorAll('.allergen-cb-' + key + ':checked')).map((el) => el.value);
     const photo_url = document.getElementById('if-photo-' + key).value.trim();
     const daily = document.getElementById('if-daily-' + key).checked;
     const errEl = document.getElementById('if-error-' + key);
     if (!name || isNaN(parseFloat(price))) { errEl.textContent = 'Vpišite ime in veljavno ceno.'; return; }
     try {
       if (itemId) {
-        await authedFetch('/owner/menu/items/' + itemId, { method: 'PATCH', body: { name, price, vat_rate, description, allergens, photo_url: photo_url || null, daily } }, ownerToken());
+        await authedFetch('/owner/menu/items/' + itemId, { method: 'PATCH', body: { name, price, vat_rate, description, allergen_codes, photo_url: photo_url || null, daily } }, ownerToken());
       } else {
-        await authedFetch('/owner/menu/items', { method: 'POST', body: { category_id: categoryId, name, price, vat_rate, description, allergens, photo_url: photo_url || null, daily } }, ownerToken());
+        await authedFetch('/owner/menu/items', { method: 'POST', body: { category_id: categoryId, name, price, vat_rate, description, allergen_codes, photo_url: photo_url || null, daily } }, ownerToken());
       }
       await loadOwnerData();
       showToast('Jed shranjena.');
