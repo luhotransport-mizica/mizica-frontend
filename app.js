@@ -151,6 +151,7 @@
     no_orders_yet: { sl: 'Še nimate naročil.', en: "You don't have any orders yet." },
     order_discount: { sl: 'Popust:', en: 'Discount:' },
     order_points_earned: { sl: 'Prislužene točke zvestobe:', en: 'Loyalty points earned:' },
+    order_eta_label: { sl: 'Ocenjen čas dostave:', en: 'Estimated delivery time:' },
     rate_order: { sl: 'Ocenite naročilo', en: 'Rate order' },
     rated: { sl: 'Ocenjeno', en: 'Rated' },
     status_novo: { sl: 'Novo', en: 'New' },
@@ -1434,6 +1435,7 @@
           ${Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0) > 0 ? `<p class="order-items-line">${t('order_discount')} &minus;${eur(Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0))}</p>` : ''}
           <p class="order-total-line">${eur(total)}</p>
           ${Number(o.loyalty_points_earned || 0) > 0 ? `<p class="order-items-line">${t('order_points_earned')} +${o.loyalty_points_earned}</p>` : ''}
+          ${(o.type === 'dostava' && o.estimated_delivery_minutes && (o.status === 'sprejeto' || o.status === 'pripravljeno')) ? `<p class="order-items-line">${t('order_eta_label')} ${o.estimated_delivery_minutes} min</p>` : ''}
           ${reviewHtml}
         </div>
       `;
@@ -1814,7 +1816,15 @@
     const cancelReasonLabel = o.cancel_reason_code ? (CANCEL_REASON_LABELS[o.cancel_reason_code] || o.cancel_reason_code) : null;
     let actions = '';
     if (o.status === 'novo') {
+      const etaOptions = [15,30,45,60,90,120].map((m) => `<option value="${m}">${m} min</option>`).join('');
+      const etaPicker = o.type === 'dostava' ? `
+        <select class="text-input" id="eta_${o.id}" style="margin-bottom:6px;">
+          <option value="">Ocena dostave (neobvezno)</option>
+          ${etaOptions}
+        </select>
+      ` : '';
       actions = `
+        ${etaPicker}
         <button class="mini-btn primary" type="button" onclick="window.__acceptOrder('${o.id}')">Sprejmi</button>
         <button class="mini-btn ghost" type="button" onclick="window.__rejectOrder('${o.id}')">Zavrni</button>
       `;
@@ -2033,7 +2043,10 @@
   // Obvezna 2 klika: Sprejmi -> Pripravljeno. Zaključek je nato samodejen (ali neobvezen ročni "Zaključi zdaj").
   async function acceptOrder(id) {
     try {
-      await authedFetch('/owner/orders/' + id + '/accept', { method: 'POST' }, ownerToken());
+      const etaEl = document.getElementById('eta_' + id);
+      const body = {};
+      if (etaEl && etaEl.value) body.estimated_delivery_minutes = Number(etaEl.value);
+      await authedFetch('/owner/orders/' + id + '/accept', { method: 'POST', body }, ownerToken());
       await loadOwnerData();
     } catch (e) { showToast(e.message); }
   }
