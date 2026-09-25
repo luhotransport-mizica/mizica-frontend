@@ -1154,7 +1154,8 @@
     errEl.textContent = '';
     const name = document.getElementById('cartName').value.trim();
     const phone = document.getElementById('cartPhone').value.trim();
-    const timeSlot = document.getElementById('cartTimeSlot').value;
+    const timeSlotEl = document.getElementById('cartTimeSlot');
+    const timeSlot = timeSlotEl ? timeSlotEl.value : '';
     const addressEl = document.getElementById('cartAddress');
     const consent = document.getElementById('cartConsent').checked;
     const address = addressEl ? addressEl.value.trim() : '';
@@ -1528,7 +1529,7 @@
     document.getElementById('accountRegisterFields').style.display = accountMode === 'register' ? 'block' : 'none';
     document.getElementById('accountSubmitBtn').textContent = t(accountMode === 'login' ? 'login_title' : 'register_title');
     document.getElementById('accountToggleModeBtn').textContent = t(accountMode === 'login' ? 'to_register' : 'to_login');
-    document.getElementById('accountForgotBtn').style.display = accountMode === 'login' ? '' : 'none';
+    if (document.getElementById('accountForgotBtn')) document.getElementById('accountForgotBtn').style.display = accountMode === 'login' ? '' : 'none';
     document.getElementById('accountLoginError').textContent = '';
   });
 
@@ -1572,7 +1573,8 @@
     }
   });
 
-  document.getElementById('accountForgotBtn').addEventListener('click', async () => {
+  const __accountForgotBtnEl = document.getElementById('accountForgotBtn');
+  if (__accountForgotBtnEl) __accountForgotBtnEl.addEventListener('click', async () => {
     const email = document.getElementById('accountEmail').value.trim();
     if (!email) { showToast(t('forgot_password_need_email')); return; }
     const { error } = await sb.auth.resetPasswordForEmail(email);
