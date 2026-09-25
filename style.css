@@ -256,6 +256,8 @@ textarea.text-input{resize:vertical; min-height:70px;}
 .order-total{font-weight:700; font-size:.9rem; font-variant-numeric:tabular-nums;}
 .order-reject{font-size:.78rem; color:var(--red); margin-top:6px;}
 .order-actions{display:flex; gap:6px; margin-top:10px;}
+.eta-picker-row{margin-top:10px;}
+.eta-picker-row .field-label{margin-bottom:4px;}
 .mini-btn{flex:1; border:1px solid var(--line); background:var(--bg-sunken); color:var(--ink); font-size:.78rem; font-weight:700; padding:7px; border-radius:8px;}
 .mini-btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
 .add-to-cart-btn{font-size:.92rem; padding:12px 20px !important;}
