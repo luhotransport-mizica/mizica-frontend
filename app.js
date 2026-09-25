@@ -424,6 +424,10 @@
     if (name === 'owner') initOwnerView();
     if (name === 'admin') initAdminView();
     if (name === 'account') initAccountView();
+    clearInterval(accountOrdersPollTimer);
+    if (name === 'account') {
+      accountOrdersPollTimer = setInterval(refreshAccountOrdersQuiet, 15000);
+    }
   }
   document.querySelectorAll('.viewnav button[data-view]').forEach((b) => {
     b.addEventListener('click', () => goToView(b.dataset.view));
@@ -1272,6 +1276,7 @@
   // =================================================================
   let customerSession = null;
   let customerOrders = [];
+  let accountOrdersPollTimer = null;
   let accountMode = 'login'; // 'login' | 'register'
 
   function customerToken() { return customerSession && customerSession.access_token; }
@@ -1440,6 +1445,14 @@
     get preklicano() { return t('status_preklicano'); },
     get ni_prevzel() { return t('status_ni_prevzel'); }
   };
+
+  async function refreshAccountOrdersQuiet() {
+    if (currentView !== 'account' || !customerToken()) return;
+    try {
+      customerOrders = await authedFetch('/customer/orders', {}, customerToken());
+      renderAccountOrders();
+    } catch (e) {}
+  }
 
   function renderAccountOrders() {
     const wrap = document.getElementById('accountOrders');
