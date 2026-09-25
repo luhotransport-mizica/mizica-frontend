@@ -1850,16 +1850,19 @@
     const deadline = ['sprejeto', 'pripravljeno'].includes(o.status) ? autoCompleteDeadline(o) : null;
     const cancelReasonLabel = o.cancel_reason_code ? (CANCEL_REASON_LABELS[o.cancel_reason_code] || o.cancel_reason_code) : null;
     let actions = '';
+    let etaPickerHtml = '';
     if (o.status === 'novo') {
       const etaOptions = [15,30,45,60,90,120].map((m) => `<option value="${m}">${m} min</option>`).join('');
-      const etaPicker = o.type === 'dostava' ? `
-        <select class="text-input" id="eta_${o.id}" style="margin-bottom:6px;">
-          <option value="">Ocena dostave (neobvezno)</option>
-          ${etaOptions}
-        </select>
+      etaPickerHtml = o.type === 'dostava' ? `
+        <div class="eta-picker-row">
+          <label class="field-label" for="eta_${o.id}">Ocenjen čas dostave (neobvezno)</label>
+          <select class="text-input" id="eta_${o.id}">
+            <option value="">Izberite oceno...</option>
+            ${etaOptions}
+          </select>
+        </div>
       ` : '';
       actions = `
-        ${etaPicker}
         <button class="mini-btn primary" type="button" onclick="window.__acceptOrder('${o.id}')">Sprejmi</button>
         <button class="mini-btn ghost" type="button" onclick="window.__rejectOrder('${o.id}')">Zavrni</button>
       `;
@@ -1895,6 +1898,7 @@
         ${deadline ? `<div class="order-items">Samodejni zaključek: do ${deadline.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
         ${cancelReasonLabel ? `<div class="order-reject">Razlog: ${esc(cancelReasonLabel)}</div>` : ''}
         ${o.rejection_reason ? `<div class="order-reject">${esc(o.rejection_reason)}</div>` : ''}
+        ${etaPickerHtml}
         <div class="order-actions">
           ${actions}
           <button class="mini-btn ghost" type="button" onclick="window.__printOrder('${o.id}')">Natisni</button>
