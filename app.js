@@ -1257,7 +1257,7 @@
 
       if (remaining <= 0) {
         clearInterval(confirmTimer);
-        if (customerToken() && currentView === 'confirm') { goToView('account'); }
+        if (customerToken() && currentView === 'confirm') { scrollToOrdersOnNextRender = true; goToView('account'); }
       }
     }
     draw();
@@ -1280,6 +1280,7 @@
   let customerSession = null;
   let customerOrders = [];
   let accountOrdersPollTimer = null;
+  let scrollToOrdersOnNextRender = false;
   let accountMode = 'login'; // 'login' | 'register'
 
   function customerToken() { return customerSession && customerSession.access_token; }
@@ -1490,6 +1491,10 @@
         </div>
       `;
     }).join('');
+    if (scrollToOrdersOnNextRender) {
+      scrollToOrdersOnNextRender = false;
+      setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
   }
 
   // ---------------- ocenjevanje naročila ----------------
