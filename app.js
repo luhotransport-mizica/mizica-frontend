@@ -1255,7 +1255,10 @@
       if (cancelBtn) cancelBtn.addEventListener('click', () => cancelOrderFlow(order, vat, restaurantName));
       document.getElementById('confirmBackBtn').addEventListener('click', () => { clearInterval(confirmTimer); goToView('market'); });
 
-      if (remaining <= 0) clearInterval(confirmTimer);
+      if (remaining <= 0) {
+        clearInterval(confirmTimer);
+        if (customerToken() && currentView === 'confirm') { goToView('account'); }
+      }
     }
     draw();
     confirmTimer = setInterval(draw, 1000);
