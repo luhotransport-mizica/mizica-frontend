@@ -1711,7 +1711,6 @@
 
   async function showOwnerApp() {
     document.getElementById('ownerLoginWrap').style.display = 'none';
-    document.getElementById('ownerAppWrap').style.display = 'block';
     await loadOwnerData();
   }
 
@@ -1720,6 +1719,16 @@
     if (!token) return;
     try {
       ownerRestaurant = await authedFetch('/owner/me', {}, token);
+    } catch (e) {
+      ownerSession = null;
+      ownerRestaurant = null;
+      document.getElementById('ownerAppWrap').style.display = 'none';
+      showOwnerLogin();
+      showToast('Ta uporabniški račun ni povezan z nobeno gostilno.');
+      return;
+    }
+    try {
+      document.getElementById('ownerAppWrap').style.display = 'block';
       document.getElementById('ownerWhoName').textContent = ownerRestaurant.name;
       document.getElementById('ownerWhoSub').textContent = ownerRestaurant.email || '';
       try {
