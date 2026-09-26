@@ -3613,14 +3613,24 @@
     const feeOsnova = x.earning;
     const feeDdv = feeOsnova * SERVICE_DDV / 100;
     const feeTotal = feeOsnova + feeDdv;
+    const monthStart = adminMonth + '-01';
+    // Del meseca, ko je bila gostilna še v preizkusu (brezplačno) — prikažemo ločeno, obračunamo
+    // pa samo del od izteka preizkusa naprej (glej billableFromForMonth na strežniku).
+    const hasTrialSplit = !!(x.trial_ends_at && x.billable_from && x.billable_from > monthStart);
 
     const rows = [];
-    rows.push(`<tr><td>Promet gostilne (z DDV, vključno z dostavo)</td><td>${eur(x.promet)}</td></tr>`);
-    rows.push(`<tr><td>Neto prodaja hrane/pijače (brez DDV, brez dostave)</td><td>${eur(x.osnova)}</td></tr>`);
-    rows.push(`<tr><td>Število naročil</td><td>${x.narocila}</td></tr>`);
+    if (hasTrialSplit) {
+      rows.push(`<tr><td>Preizkusno obdobje (brezplačno) do</td><td>${x.trial_ends_at}</td></tr>`);
+      rows.push(`<tr><td>Promet v preizkusnem obdobju (ni obračunano)</td><td>${eur(x.promet_trial)}</td></tr>`);
+      rows.push(`<tr><td>Naročila v preizkusnem obdobju</td><td>${x.narocila_trial}</td></tr>`);
+      rows.push(`<tr><td>Obračunano od</td><td>${x.billable_from}</td></tr>`);
+    }
+    rows.push(`<tr><td>Promet gostilne (z DDV, vključno z dostavo, cel mesec)</td><td>${eur(x.promet)}</td></tr>`);
+    rows.push(`<tr><td>Neto prodaja hrane/pijače v obračunanem obdobju (brez DDV, brez dostave)</td><td>${eur(x.osnova_billable != null ? x.osnova_billable : x.osnova)}</td></tr>`);
+    rows.push(`<tr><td>Število naročil${hasTrialSplit ? ' v obračunanem obdobju' : ''}</td><td>${x.narocila_billable != null ? x.narocila_billable : x.narocila}</td></tr>`);
     rows.push(`<tr><td>Obračunski model</td><td>${billingModelLabel(r.billing_model)}</td></tr>`);
-    if (r.billing_model === 'najemnina' || r.billing_model === 'oboje') rows.push(`<tr><td>Naročnina</td><td>${eur(r.najemnina)}</td></tr>`);
-    if (r.billing_model === 'provizija' || r.billing_model === 'oboje') rows.push(`<tr><td>Provizija (${r.provizija}% od neto prodaje hrane/pijače)</td><td>${eur(x.osnova * r.provizija / 100)}</td></tr>`);
+    if (r.billing_model === 'najemnina' || r.billing_model === 'oboje') rows.push(`<tr><td>Naročnina${hasTrialSplit ? ' (sorazmerno za obračunano obdobje)' : ''}</td><td>${eur(x.rent_share != null ? x.rent_share : r.najemnina)}</td></tr>`);
+    if (r.billing_model === 'provizija' || r.billing_model === 'oboje') rows.push(`<tr><td>Provizija (${r.provizija}% od neto prodaje v obračunanem obdobju)</td><td>${eur(x.commission_share != null ? x.commission_share : (x.osnova * r.provizija / 100))}</td></tr>`);
     rows.push(`<tr><td>Osnova za vaš račun</td><td>${eur(feeOsnova)}</td></tr>`);
     rows.push(`<tr><td>DDV ${formatVatSl(SERVICE_DDV)}</td><td>${eur(feeDdv)}</td></tr>`);
     rows.push(`<tr class="print-total-row"><td>Skupaj za plačilo</td><td>${eur(feeTotal)}</td></tr>`);
