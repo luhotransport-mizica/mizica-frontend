@@ -337,6 +337,9 @@
           <button class="admin-nav-btn" data-atab="popravki" type="button">
             <span class="admin-nav-icon">&#9888;</span> Popravki <span class="otab-badge" id="adminCorrectionsTabBadge" style="display:none;"></span>
           </button>
+          <button class="admin-nav-btn" data-atab="dac7" type="button">
+            <span class="admin-nav-icon">&#128196;</span> DAC7 poročanje
+          </button>
           <div class="admin-sidebar-spacer"></div>
           <div class="admin-sidebar-user" id="adminWhoName">—</div>
           <button class="secondary-btn on-dark-btn" id="adminLogoutBtn">Odjava</button>
@@ -466,6 +469,18 @@
                 <tbody id="correctionsTableBody"></tbody>
               </table>
             </div>
+          </div>
+
+          <!-- ================= DAC7 poročanje ================= -->
+          <div class="atab" id="atab-dac7">
+            <h1>DAC7 poročanje</h1>
+            <p class="section-sub">Letno poročilo za FURS (OECD DPI / DAC7 XML) o prometu gostiln na platformi.</p>
+            <div class="settings-row">
+              <span class="lbl">Leto poročanja</span>
+              <select class="select-input" id="dac7YearSelect"></select>
+            </div>
+            <button class="primary-btn" type="button" style="margin-top:10px;" onclick="window.__downloadDac7Report()">Izvozi XML za FURS</button>
+            <div id="dac7Status" style="margin-top:12px;"></div>
           </div>
         </div>
       </div>
