@@ -414,6 +414,7 @@
   let currentView = 'market';
   function goToView(name) {
     currentView = name;
+    try { if (name !== 'confirm') localStorage.setItem('mizicaLastView', name); } catch (e) {}
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     document.getElementById('view-' + name).classList.add('active');
     document.querySelectorAll('.viewnav button[data-view]').forEach((b) => {
@@ -688,6 +689,7 @@
 
   async function openRestaurant(id) {
     goToView('restaurant');
+    try { localStorage.setItem('mizicaLastRestaurantId', id); } catch (e) {}
     selectedMenuCat = null;
     selectedMalicaDay = null;
     document.getElementById('restaurantContent').innerHTML = `<div class="loading-note">${uiLang === 'en' ? 'Loading restaurant...' : 'Nalagam gostilno...'}</div>`;
@@ -3589,8 +3591,27 @@
       if (pendingAuthType) document.getElementById('navAdminBtn').style.display = '';
       if (wantsAdmin) {
         goToView('admin');
+        return;
       } else if (wantsOwner || pendingAuthType) {
         goToView('owner');
+        return;
+      }
+    }
+    // Če ni izrecne povezave (deljena gostilna, prijava za gostilne/skrbnika), ob osvežitvi
+    // strani ostanemo na istem zavihku, kjer je bil uporabnik nazadnje, namesto da se
+    // vedno vrne na Ponudbo.
+    if (!shareRestaurantId) {
+      let savedView = null, savedRestaurantId = null;
+      try {
+        savedView = localStorage.getItem('mizicaLastView');
+        savedRestaurantId = localStorage.getItem('mizicaLastRestaurantId');
+      } catch (e) {}
+      if (savedView === 'account') {
+        goToView('account');
+      } else if ((savedView === 'owner' || savedView === 'admin') && !hasCustomerSession) {
+        goToView(savedView);
+      } else if (savedView === 'restaurant' && savedRestaurantId) {
+        openRestaurant(savedRestaurantId);
       }
     }
   })();
