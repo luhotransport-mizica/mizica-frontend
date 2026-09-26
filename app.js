@@ -3249,6 +3249,7 @@
         <td>${cancelRateCell(r)}</td>
         <td class="td-actions">
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openBillingModal('${r.id}')">Obračun</button>
+          <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openDac7Modal('${r.id}')">DAC7 podatki</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__openSetPasswordModal('${r.id}')">Nastavi geslo</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__copyRestaurantLink('${r.id}','${esc(r.name).replace(/'/g, "\\'")}')">Kopiraj povezavo</button>
           <button class="secondary-btn on-dark-btn" type="button" onclick="window.__toggleActive('${r.id}',${!r.aktivna})">${r.aktivna ? 'Deaktiviraj' : 'Aktiviraj'}</button>
@@ -3447,6 +3448,50 @@
       .catch((e) => showToast(e.message));
   }
   window.__saveBilling = saveBilling;
+
+  // DAC7/OECD-DPI podatki o lastniku gostilne — po navadi jih gostilna vpiše sama v svojih
+  // nastavitvah, a jih po potrebi (npr. po telefonu ali mailu) lahko vnese/popravi tudi skrbnik.
+  function openDac7Modal(id) {
+    const r = adminRestaurants.find((x) => x.id === id);
+    if (!r) return;
+    openModal(`
+      <h3>DAC7 podatki &middot; ${esc(r.name)}</h3>
+      <div class="settings-row"><span class="lbl">Oblika poslovanja</span>
+        <select class="select-input" style="max-width:200px;" id="dac7LegalType">
+          <option value="" ${!r.legal_entity_type ? 'selected' : ''}>Izberi...</option>
+          <option value="sp" ${r.legal_entity_type === 'sp' ? 'selected' : ''}>s.p. (samostojni podjetnik)</option>
+          <option value="doo" ${r.legal_entity_type === 'doo' ? 'selected' : ''}>d.o.o. / drugo</option>
+        </select>
+      </div>
+      <p class="section-sub" style="margin:6px 0;">Spodnji podatki o lastniku so potrebni samo za s.p. (pri DAC7 poročanju se obravnava kot fizična oseba).</p>
+      <div class="form-grid">
+        <div class="form-field"><label>Ime lastnika</label><input class="text-input" id="dac7FirstName" value="${esc(r.owner_first_name || '')}"></div>
+        <div class="form-field"><label>Priimek lastnika</label><input class="text-input" id="dac7LastName" value="${esc(r.owner_last_name || '')}"></div>
+        <div class="form-field"><label>Datum rojstva</label><input class="text-input" type="date" id="dac7BirthDate" value="${esc(r.owner_birth_date || '')}"></div>
+        <div class="form-field"><label>Kraj rojstva</label><input class="text-input" id="dac7BirthPlace" value="${esc(r.owner_birth_place || '')}"></div>
+      </div>
+      <div class="modal-close-row">
+        <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__saveDac7Modal('${id}')">Shrani</button>
+      </div>
+    `);
+  }
+  window.__openDac7Modal = openDac7Modal;
+
+  function saveDac7Modal(id) {
+    const legal_entity_type = document.getElementById('dac7LegalType').value;
+    const owner_first_name = document.getElementById('dac7FirstName').value.trim();
+    const owner_last_name = document.getElementById('dac7LastName').value.trim();
+    const owner_birth_date = document.getElementById('dac7BirthDate').value;
+    const owner_birth_place = document.getElementById('dac7BirthPlace').value.trim();
+    authedFetch('/admin/restaurants/' + id, {
+      method: 'PATCH',
+      body: { legal_entity_type, owner_first_name, owner_last_name, owner_birth_date, owner_birth_place }
+    }, adminToken())
+      .then(() => { closeModal(); loadAdminRestaurants(); showToast('DAC7 podatki shranjeni.'); })
+      .catch((e) => showToast(e.message));
+  }
+  window.__saveDac7Modal = saveDac7Modal;
 
   function openSetPasswordModal(id) {
     const r = adminRestaurants.find((x) => x.id === id);
