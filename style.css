@@ -45,7 +45,7 @@ input,select,textarea{font-family:inherit;}
 .topbar{position:sticky; top:env(safe-area-inset-top,0px); z-index:40; background:var(--bg); border-bottom:1px solid var(--line);}
 .topbar-inner{max-width:1440px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
 .brand{display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-weight:600; font-size:1.3rem;}
-.brand-mark{width:34px; height:34px; border-radius:9px; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; font-size:1.05rem; font-weight:700; flex-shrink:0;}
+.brand-mark{width:34px; height:34px; border-radius:9px; object-fit:contain; flex-shrink:0;}
 .brand-sub{font-family:var(--font-body); font-size:.72rem; color:var(--ink-soft); font-weight:600; letter-spacing:.04em; text-transform:uppercase; margin-left:2px;}
 .viewnav{display:flex; gap:6px; background:var(--bg-sunken); padding:4px; border-radius:12px;}
 .viewnav button{position:relative; border:none; background:transparent; color:var(--ink-soft); font-weight:600; font-size:.86rem; padding:8px 14px; border-radius:9px; transition:background .15s,color .15s;}
@@ -329,7 +329,7 @@ textarea.text-input{resize:vertical; min-height:70px;}
 
 .admin-sidebar{flex:0 0 210px; background:var(--admin-panel); border-right:1px solid var(--admin-line); border-radius:var(--radius) 0 0 var(--radius); padding:18px 12px; display:flex; flex-direction:column; gap:4px;}
 .admin-sidebar-brand{font-family:var(--font-display); font-weight:700; font-size:1.05rem; color:var(--admin-ink); display:flex; align-items:center; gap:8px; padding:6px 10px 18px;}
-.admin-sidebar-brand .brand-mark{width:26px; height:26px; border-radius:8px; background:var(--accent); color:var(--accent-ink); display:inline-flex; align-items:center; justify-content:center; font-size:.85rem; font-weight:700;}
+.admin-sidebar-brand .brand-mark{width:26px; height:26px; border-radius:8px; object-fit:contain;}
 .admin-nav-btn{display:flex; align-items:center; gap:10px; border:none; background:transparent; color:var(--admin-ink-soft); font-weight:600; font-size:.88rem; padding:11px 12px; border-radius:10px; text-align:left; width:100%;}
 .admin-nav-btn:hover{background:rgba(255,255,255,.05);}
 .admin-nav-btn.active{background:var(--accent); color:var(--accent-ink);}
