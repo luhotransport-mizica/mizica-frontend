@@ -2776,6 +2776,20 @@
         <div class="settings-row"><span class="lbl">Matična številka</span><input class="text-input" style="max-width:160px;" value="${esc(r.maticna_stevilka||'')}" onchange="window.__updateOwnerSetting('maticna_stevilka',this.value)"></div>
         <div class="settings-row"><span class="lbl">Davčna številka</span><input class="text-input" style="max-width:160px;" value="${esc(r.davcna_stevilka||'')}" onchange="window.__updateOwnerSetting('davcna_stevilka',this.value)"></div>
         <div class="settings-row"><label class="checkbox-item"><input type="checkbox" ${r.zavezanec_ddv?'checked':''} onchange="window.__updateOwnerSetting('zavezanec_ddv',this.checked)"> Zavezanec za DDV</label></div>
+        <div class="settings-row"><span class="lbl">Oblika poslovanja</span>
+          <select class="select-input" style="max-width:200px;" onchange="window.__updateLegalEntityType(this.value)">
+            <option value="" ${!r.legal_entity_type?'selected':''}>Izberi...</option>
+            <option value="sp" ${r.legal_entity_type==='sp'?'selected':''}>s.p. (samostojni podjetnik)</option>
+            <option value="doo" ${r.legal_entity_type==='doo'?'selected':''}>d.o.o. / drugo</option>
+          </select>
+        </div>
+        ${r.legal_entity_type === 'sp' ? `
+        <p class="section-sub" style="margin:6px 0;">Za DAC7 davčno poročanje potrebujemo tudi te podatke o lastniku (s.p. se pri poročanju obravnava kot fizična oseba).</p>
+        <div class="settings-row"><span class="lbl">Ime lastnika</span><input class="text-input" style="max-width:200px;" value="${esc(r.owner_first_name||'')}" onchange="window.__updateOwnerSetting('owner_first_name',this.value)"></div>
+        <div class="settings-row"><span class="lbl">Priimek lastnika</span><input class="text-input" style="max-width:200px;" value="${esc(r.owner_last_name||'')}" onchange="window.__updateOwnerSetting('owner_last_name',this.value)"></div>
+        <div class="settings-row"><span class="lbl">Datum rojstva</span><input class="text-input" style="max-width:160px;" type="date" value="${esc(r.owner_birth_date||'')}" onchange="window.__updateOwnerSetting('owner_birth_date',this.value)"></div>
+        <div class="settings-row"><span class="lbl">Kraj rojstva</span><input class="text-input" style="max-width:200px;" value="${esc(r.owner_birth_place||'')}" onchange="window.__updateOwnerSetting('owner_birth_place',this.value)"></div>
+        ` : ''}
         <div class="settings-row"><span class="lbl">Telefon</span><input class="text-input" style="max-width:200px;" type="tel" value="${esc(r.telefon||'')}" onchange="window.__updateOwnerSetting('telefon',this.value)"></div>
       </div>
       <div class="settings-block">
@@ -2970,6 +2984,13 @@
   }
   window.__updateOwnerSetting = updateOwnerSetting;
 
+  function updateLegalEntityType(value) {
+    authedFetch('/owner/restaurant', { method: 'PATCH', body: { legal_entity_type: value } }, ownerToken())
+      .then((data) => { ownerRestaurant = data; showToast('Shranjeno.'); renderOwnerSettings(); })
+      .catch((e) => showToast(e.message));
+  }
+  window.__updateLegalEntityType = updateLegalEntityType;
+
   function addClosedDate() {
     const input = document.getElementById('newClosedDate');
     if (!input.value) return;
@@ -3071,7 +3092,8 @@
     document.getElementById('adminLoginWrap').style.display = 'none';
     document.getElementById('adminAppWrap').style.display = 'block';
     document.getElementById('adminWhoName').textContent = adminSession.user.email;
-    populateMonthSelect();
+    populateMonthSelec
+    populateDac7YearSelect();t();
     await loadAdminRestaurants();
     await Promise.all([loadAnalytics(), loadDashboard(), loadCorrectionRequests()]);
   }
@@ -3086,7 +3108,52 @@
     const names = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'avg', 'sep', 'okt', 'nov', 'dec'];
     return names[parseInt(m, 10) - 1] + ' ' + y;
   }
-  function populateMonthSelect() {
+  function populateDac7YearSelect() {
+    const sel = document.getElementById('dac7YearSelect');
+    if (!sel) return;
+    const thisYear = new Date().getFullYear();
+    const years = [];
+    for (let y = thisYear; y >= 2026; y--) years.push(y);
+    if (!years.length) years.push(thisYear);
+    sel.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join('');
+  }
+
+  async function downloadDac7Report() {
+    const sel = document.getElementById('dac7YearSelect');
+    const statusEl = document.getElementById('dac7Status');
+    const year = sel ? sel.value : new Date().getFullYear();
+    statusEl.textContent = 'Pripravljam datoteko...';
+    try {
+      const res = await fetch(API + '/admin/dac7-report?year=' + year, {
+        headers: { Authorization: 'Bearer ' + adminToken() },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Napaka pri izvozu.');
+      }
+      const warningsHeader = res.headers.get('X-Dac7-Warnings');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DAC7_${year}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      if (warningsHeader) {
+        const names = JSON.parse(decodeURIComponent(warningsHeader));
+        statusEl.innerHTML = 'Datoteka pripravljena. <strong>Opozorilo:</strong> te gostilne so izpuščene, ker jim manjkajo podatki v Nastavitvah: ' + names.map(esc).join(', ') + '.';
+      } else {
+        statusEl.textContent = 'Datoteka pripravljena.';
+      }
+    } catch (e) {
+      statusEl.textContent = 'Napaka: ' + e.message;
+    }
+  }
+  window.__downloadDac7Report = downloadDac7Report;
+
+    function populateMonthSelect() {
     const sel = document.getElementById('monthSelect');
     if (sel.options.length) return;
     const keys = [3, 2, 1, 0].map((n) => monthKey(n));
