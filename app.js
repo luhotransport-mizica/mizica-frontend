@@ -3635,44 +3635,44 @@
   } else if (wantsOwner || pendingAuthType) {
     goToView('owner');
   }
-})();
-
-// ===== Izbris uporabniškega računa (točka 5: hramba in izbris osebnih podatkov) =====
-function deleteAccountFlow() {
-  openModal(`
-    <h3>Izbriši račun</h3>
-    <p>Ali res želite izbrisati svoj račun? Dostop do računa bo trajno odstranjen. Podatki, ki jih moramo hraniti zaradi zakonskih obveznosti ali odprtih zahtevkov, bodo hranjeni samo toliko časa, kot je potrebno.</p>
-    <div class="modal-close-row">
-      <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
-      <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__deleteAccountStep2()">Nadaljuj</button>
-    </div>
-  `);
-}
-window.__deleteAccountFlow = deleteAccountFlow;
-
-function deleteAccountStep2() {
-  openModal(`
-    <h3>Dokončno potrdite izbris</h3>
-    <p>To je zadnji korak. Z nadaljevanjem trajno izbrišete svoj uporabniški račun in dostop do njega. Tega dejanja ni mogoče razveljaviti.</p>
-    <div class="modal-close-row">
-      <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
-      <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__confirmDeleteAccount()">Izbriši račun</button>
-    </div>
-  `);
-}
-window.__deleteAccountStep2 = deleteAccountStep2;
-
-async function confirmDeleteAccount() {
-  try {
-    await authedFetch('/customer/account', { method: 'DELETE' }, customerToken());
-    closeModal();
-    customerSession = null;
-    showAccountLogin();
-    syncMyKrajFilterVisibility();
-    renderMarket();
-  } catch (e) {
-    closeModal();
-    alert('Izbris računa ni uspel. Poskusite znova ali nas kontaktirajte.');
+  // ===== Izbris uporabniškega računa (točka 5: hramba in izbris osebnih podatkov) =====
+  function deleteAccountFlow() {
+    openModal(`
+      <h3>Izbriši račun</h3>
+      <p>Ali res želite izbrisati svoj račun? Dostop do računa bo trajno odstranjen. Podatki, ki jih moramo hraniti zaradi zakonskih obveznosti ali odprtih zahtevkov, bodo hranjeni samo toliko časa, kot je potrebno.</p>
+      <div class="modal-close-row">
+        <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__deleteAccountStep2()">Nadaljuj</button>
+      </div>
+    `);
   }
-}
-window.__confirmDeleteAccount = confirmDeleteAccount;
+  window.__deleteAccountFlow = deleteAccountFlow;
+
+  function deleteAccountStep2() {
+    openModal(`
+      <h3>Dokončno potrdite izbris</h3>
+      <p>To je zadnji korak. Z nadaljevanjem trajno izbrišete svoj uporabniški račun in dostop do njega. Tega dejanja ni mogoče razveljaviti.</p>
+      <div class="modal-close-row">
+        <button class="secondary-btn" type="button" onclick="closeModal()">Prekliči</button>
+        <button class="mini-btn primary" style="flex:none; padding:9px 16px;" type="button" onclick="window.__confirmDeleteAccount()">Izbriši račun</button>
+      </div>
+    `);
+  }
+  window.__deleteAccountStep2 = deleteAccountStep2;
+
+  async function confirmDeleteAccount() {
+    try {
+      await authedFetch('/customer/account', { method: 'DELETE' }, customerToken());
+      closeModal();
+      customerSession = null;
+      showAccountLogin();
+      syncMyKrajFilterVisibility();
+      renderMarket();
+    } catch (e) {
+      closeModal();
+      alert('Izbris računa ni uspel. Poskusite znova ali nas kontaktirajte.');
+    }
+  }
+  window.__confirmDeleteAccount = confirmDeleteAccount;
+
+})();
