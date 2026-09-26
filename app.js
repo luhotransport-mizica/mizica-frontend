@@ -147,7 +147,7 @@
     confirm_on_delivery: { sl: 'ob dostavi', en: 'on delivery' },
     confirm_on_pickup: { sl: 'ob prevzemu', en: 'on pickup' },
     confirm_pay_note: { sl: 'Plačilo poteka neposredno pri gostilni. Mizica ne obdeluje plačil.', en: 'Payment is made directly to the restaurant. Mizica does not process payments.' },
-    confirm_cancel_btn: { sl: 'Prekliči naročilo (še', en: 'Cancel order (still' },
+    confirm_cancel_btn: { sl: 'Prekliči naročilo', en: 'Cancel order' },
     confirm_cancelled: { sl: 'Naročilo je bilo preklicano/zavrnjeno.', en: 'The order was cancelled/rejected.' },
     confirm_back: { sl: 'Nazaj na ponudbo', en: 'Back to offer' },
     login_title: { sl: 'Prijava', en: 'Log in' },
@@ -1238,6 +1238,7 @@
     const cancelWindow = order.cancel_window_ms || 20000;
     const placedAt = new Date(order.placed_at || Date.now()).getTime();
     let tickCount = 0;
+    let redirectedToAccount = false;
     async function checkLiveStatus() {
       if (order.status !== 'novo') return;
       try {
@@ -1257,10 +1258,9 @@
       tickCount++;
       if (tickCount % 5 === 0) checkLiveStatus();
       const elapsed = Date.now() - placedAt;
-      const remaining = Math.max(0, cancelWindow - elapsed);
-      const canCancel = order.status === 'novo' && remaining > 0;
-      const mm = Math.floor(remaining / 60000);
-      const ss = Math.floor((remaining % 60000) / 1000);
+      // Dokler gostilna naročila ni sprejela/zavrnila, ga stranka lahko prekliče kadarkoli -
+      // ni več omejeno na prvih 20 sekund (glej tudi "Moja naročila" za prijavljene stranke).
+      const canCancel = order.status === 'novo';
 
       const grandTotal = vat ? vat.grandTotal : (order.items || []).reduce((s, i) => s + i.price * i.qty, 0) + Number(order.delivery_fee || 0);
 
@@ -1285,7 +1285,7 @@
           <p class="form-note" style="margin-top:14px;">${t('confirm_pay_note')}</p>
         </div>
         ${canCancel ? `
-          <button class="secondary-btn" style="margin-top:16px;" type="button" id="cancelOrderBtn">${t('confirm_cancel_btn')} ${mm}:${String(ss).padStart(2,'0')})</button>
+          <button class="secondary-btn" style="margin-top:16px;" type="button" id="cancelOrderBtn">${t('confirm_cancel_btn')}</button>
         ` : (order.status === 'zavrnjeno' ? `<p class="warn-note" style="margin-top:16px;">${t('confirm_cancelled')}</p>` : '')}
         <button class="link-btn" type="button" id="confirmBackBtn">${t('confirm_back')}</button>
       `;
@@ -1293,9 +1293,14 @@
       if (cancelBtn) cancelBtn.addEventListener('click', () => cancelOrderFlow(order, vat, restaurantName));
       document.getElementById('confirmBackBtn').addEventListener('click', () => { clearInterval(confirmTimer); goToView('market'); });
 
-      if (remaining <= 0) {
+      // Prijavljeno stranko po kratkem času preusmerimo na "Moj račun" (kjer naročilo tudi vidi
+      // in ga po potrebi še vedno lahko prekliče), da ji ni treba čakati na tej strani. Gosta
+      // (brez prijave) ne preusmerimo nikamor, zato zanj polling in gumb za preklic ostaneta.
+      if (!redirectedToAccount && elapsed >= cancelWindow && order.status === 'novo' && customerToken() && currentView === 'confirm') {
+        redirectedToAccount = true;
         clearInterval(confirmTimer);
-        if (customerToken() && currentView === 'confirm') { scrollToOrdersOnNextRender = true; goToView('account'); }
+        scrollToOrdersOnNextRender = true;
+        goToView('account');
       }
     }
     draw();
@@ -1510,6 +1515,11 @@
           ? `<div class="order-review-done"><span class="review-stars">${starsHtml(existingReview.rating)}</span> ${t('rated')}</div>`
           : `<button class="secondary-btn" type="button" style="margin-top:8px;" onclick="window.__openReviewModal('${o.id}')">${t('rate_order')}</button>`;
       }
+      // Dokler gostilna naročila ni sprejela/zavrnila (status 'novo'), ga stranka lahko
+      // prekliče tudi tukaj - ne samo na strani takoj po oddaji.
+      const cancelHtml = o.status === 'novo'
+        ? `<button class="secondary-btn" type="button" style="margin-top:8px;" onclick="window.__cancelOrderFromAccount('${o.id}')">${t('confirm_cancel_btn')}</button>`
+        : '';
       return `
         <div class="order-card">
           <div class="order-card-top">
@@ -1526,6 +1536,7 @@
           ${Number(o.loyalty_points_earned || 0) > 0 ? `<p class="order-items-line">${t('order_points_earned')} +${o.loyalty_points_earned}</p>` : ''}
           ${(o.type === 'dostava' && o.estimated_delivery_minutes && (o.status === 'sprejeto' || o.status === 'pripravljeno')) ? `<p class="order-items-line">${t('order_eta_label')} ${o.estimated_delivery_minutes} min</p>` : ''}
           ${reviewHtml}
+          ${cancelHtml}
         </div>
       `;
     }).join('');
@@ -1534,6 +1545,17 @@
       setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     }
   }
+
+  async function cancelOrderFromAccount(orderId) {
+    try {
+      await apiFetch('/orders/' + orderId + '/cancel', { method: 'POST' });
+      showToast(uiLang === 'en' ? 'Order cancelled.' : 'Naročilo preklicano.');
+      await refreshAccountOrdersQuiet();
+    } catch (e) {
+      showToast(trErr(e.message));
+    }
+  }
+  window.__cancelOrderFromAccount = cancelOrderFromAccount;
 
   // ---------------- ocenjevanje naročila ----------------
   let reviewRatingChoice = 0;
