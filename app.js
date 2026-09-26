@@ -697,7 +697,17 @@
       currentRestaurant = customerToken()
         ? await authedFetch('/restaurants/' + id, {}, customerToken())
         : await apiFetch('/restaurants/' + id);
-      if (cart.restaurantId !== id) cart = { restaurantId: id, lines: {}, type: null, timeSlot: '', payment: '', discountCode: '', discountPercent: 0, redeemPoints: 0 };
+      if (cart.restaurantId !== id) {
+        let restoredCart = null;
+        try {
+          const raw = localStorage.getItem('mizicaCart');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.restaurantId === id) restoredCart = parsed;
+          }
+        } catch (e) {}
+        cart = restoredCart || { restaurantId: id, lines: {}, type: null, timeSlot: '', payment: '', discountCode: '', discountPercent: 0, redeemPoints: 0 };
+      }
       renderRestaurant();
     } catch (e) {
       document.getElementById('restaurantContent').innerHTML = `<div class="error-note">${uiLang === 'en' ? 'Could not load this restaurant' : 'Gostilne ni bilo mogoče naložiti'} (${esc(trErr(e.message))}).</div>`;
@@ -981,7 +991,15 @@
   }
   window.__changeQty = changeQty;
 
+  function saveCartToStorage() {
+    try {
+      if (cart.restaurantId && Object.keys(cart.lines).length) localStorage.setItem('mizicaCart', JSON.stringify(cart));
+      else localStorage.removeItem('mizicaCart');
+    } catch (e) {}
+  }
+
   function renderCartPanel() {
+    saveCartToStorage();
     const panel = document.getElementById('cartPanel');
     if (!panel) return;
     const r = currentRestaurant;
@@ -1204,6 +1222,7 @@
       }
 
       cart = { restaurantId: null, lines: {}, type: null, timeSlot: '', payment: '', discountCode: '', discountPercent: 0, redeemPoints: 0 };
+      try { localStorage.removeItem('mizicaCart'); } catch (e) {}
       renderConfirm(result.order, result.vat, currentRestaurant.name);
       goToView('confirm');
     } catch (e) {
