@@ -3569,20 +3569,29 @@
   const wantsOwner = startParams.has('gostilna');
   const wantsAdmin = startParams.has('skrbnik');
 
-  if (wantsOwner || pendingAuthType) document.getElementById('navOwnerBtn').style.display = '';
-  if (wantsAdmin) document.getElementById('navAdminBtn').style.display = '';
-  // Če je uporabnik kliknil povezavo za nastavitev/obnovitev gesla, ne vemo vnaprej, ali je
-  // lastnik gostilne ali skrbnik — pokažemo oba zavihka, da lahko izbere pravega.
-  if (pendingAuthType) document.getElementById('navAdminBtn').style.display = '';
-
   // Če je stranka že prijavljena od prej (isti brskalnik), to zaznamo ob zagonu,
   // da se takoj prikažeta filter "Samo iz mojega kraja" in prednapolnjeni podatki pri naročilu.
+  // Zavihka "Za gostilne"/"Skrbnik" in samodejna preusmeritev vanju se prikažeta
+  // samo, če stranka NI že prijavljena — ti povezavi nista namenjeni strankam,
+  // tudi če je uporabnik slučajno odprl povezavo ?gostilna/?skrbnik.
   (async () => {
     const { data } = await sb.auth.getSession();
-    if (data.session && !pendingAuthType) {
+    const hasCustomerSession = !!(data.session && !pendingAuthType);
+    if (hasCustomerSession) {
       customerSession = data.session;
       syncMyKrajFilterVisibility();
       renderMarket();
+    } else {
+      if (wantsOwner || pendingAuthType) document.getElementById('navOwnerBtn').style.display = '';
+      if (wantsAdmin) document.getElementById('navAdminBtn').style.display = '';
+      // Če je uporabnik kliknil povezavo za nastavitev/obnovitev gesla, ne vemo vnaprej, ali je
+      // lastnik gostilne ali skrbnik — pokažemo oba zavihka, da lahko izbere pravega.
+      if (pendingAuthType) document.getElementById('navAdminBtn').style.display = '';
+      if (wantsAdmin) {
+        goToView('admin');
+      } else if (wantsOwner || pendingAuthType) {
+        goToView('owner');
+      }
     }
   })();
 
@@ -3639,10 +3648,6 @@
   loadMarket();
   if (shareRestaurantId) {
     openRestaurant(shareRestaurantId);
-  } else if (wantsAdmin) {
-    goToView('admin');
-  } else if (wantsOwner || pendingAuthType) {
-    goToView('owner');
   }
   // ===== Izbris uporabniškega računa (točka 5: hramba in izbris osebnih podatkov) =====
   function deleteAccountFlow() {
