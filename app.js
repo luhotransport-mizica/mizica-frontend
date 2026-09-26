@@ -3092,8 +3092,8 @@
     document.getElementById('adminLoginWrap').style.display = 'none';
     document.getElementById('adminAppWrap').style.display = 'block';
     document.getElementById('adminWhoName').textContent = adminSession.user.email;
-    populateMonthSelec
-    populateDac7YearSelect();t();
+    populateMonthSelect();
+    populateDac7YearSelect();
     await loadAdminRestaurants();
     await Promise.all([loadAnalytics(), loadDashboard(), loadCorrectionRequests()]);
   }
