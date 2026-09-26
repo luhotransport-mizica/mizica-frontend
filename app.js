@@ -3573,33 +3573,34 @@
 
   // Če je stranka že prijavljena od prej (isti brskalnik), to zaznamo ob zagonu,
   // da se takoj prikažeta filter "Samo iz mojega kraja" in prednapolnjeni podatki pri naročilu.
-  // Zavihka "Za gostilne"/"Skrbnik" in samodejna preusmeritev vanju se prikažeta
-  // samo, če stranka NI že prijavljena — ti povezavi nista namenjeni strankam,
-  // tudi če je uporabnik slučajno odprl povezavo ?gostilna/?skrbnik.
+  // Opomba: prijava za gostilne/skrbnika uporablja isti prijavni sistem kot stranke, zato tega
+  // ne moremo ločiti zgolj po tem, ali obstaja prijava — pravo preverjanje (ali je račun res
+  // povezan z gostilno) naredi šele sam owner zaslon (glej loadOwnerData).
   (async () => {
     const { data } = await sb.auth.getSession();
-    const hasCustomerSession = !!(data.session && !pendingAuthType);
-    if (hasCustomerSession) {
+    if (data.session && !pendingAuthType) {
       customerSession = data.session;
       syncMyKrajFilterVisibility();
       renderMarket();
-    } else {
-      if (wantsOwner || pendingAuthType) document.getElementById('navOwnerBtn').style.display = '';
-      if (wantsAdmin) document.getElementById('navAdminBtn').style.display = '';
-      // Če je uporabnik kliknil povezavo za nastavitev/obnovitev gesla, ne vemo vnaprej, ali je
-      // lastnik gostilne ali skrbnik — pokažemo oba zavihka, da lahko izbere pravega.
-      if (pendingAuthType) document.getElementById('navAdminBtn').style.display = '';
-      if (wantsAdmin) {
-        goToView('admin');
-        return;
-      } else if (wantsOwner || pendingAuthType) {
-        goToView('owner');
-        return;
-      }
     }
+
+    if (wantsOwner || pendingAuthType) document.getElementById('navOwnerBtn').style.display = '';
+    if (wantsAdmin) document.getElementById('navAdminBtn').style.display = '';
+    // Če je uporabnik kliknil povezavo za nastavitev/obnovitev gesla, ne vemo vnaprej, ali je
+    // lastnik gostilne ali skrbnik — pokažemo oba zavihka, da lahko izbere pravega.
+    if (pendingAuthType) document.getElementById('navAdminBtn').style.display = '';
+    if (wantsAdmin) {
+      goToView('admin');
+      return;
+    } else if (wantsOwner || pendingAuthType) {
+      goToView('owner');
+      return;
+    }
+
     // Če ni izrecne povezave (deljena gostilna, prijava za gostilne/skrbnika), ob osvežitvi
     // strani ostanemo na istem zavihku, kjer je bil uporabnik nazadnje, namesto da se
-    // vedno vrne na Ponudbo.
+    // vedno vrne na Ponudbo. Zavihka "Za gostilne"/"Skrbnik" ostaneta dostopna samo prek
+    // svoje povezave, zato tu 'owner'/'admin' namenoma ne obnavljamo.
     if (!shareRestaurantId) {
       let savedView = null, savedRestaurantId = null;
       try {
@@ -3608,8 +3609,6 @@
       } catch (e) {}
       if (savedView === 'account') {
         goToView('account');
-      } else if ((savedView === 'owner' || savedView === 'admin') && !hasCustomerSession) {
-        goToView(savedView);
       } else if (savedView === 'restaurant' && savedRestaurantId) {
         openRestaurant(savedRestaurantId);
       }
