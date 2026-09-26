@@ -1647,6 +1647,7 @@
   let ownerOrders = [];
   let ownerDiscountCodes = [];
   let ownerInited = false;
+  let ownerAnalyticsPeriod = '30';
 
   function ownerToken() { return ownerSession && ownerSession.access_token; }
 
@@ -1671,6 +1672,7 @@
           document.querySelectorAll('.otab').forEach((x) => x.classList.remove('active'));
           b.classList.add('active');
           document.getElementById('otab-' + b.dataset.otab).classList.add('active');
+          if (b.dataset.otab === 'analitika') renderOwnerAnalytics();
         });
       });
     }
@@ -1738,9 +1740,73 @@
       renderOwnerMenu();
       renderOwnerSettings();
       renderOwnerLoyalty();
+      renderOwnerAnalytics();
     } catch (e) {
       showToast('Napaka pri nalaganju: ' + e.message);
     }
+  }
+
+  // ---------------- analitika (lastnik) ----------------
+  const OWNER_ANALYTICS_PERIODS = [
+    { key: 'today', label: 'Danes' },
+    { key: '7', label: '7 dni' },
+    { key: '30', label: '30 dni' },
+    { key: 'month', label: 'Ta mesec' },
+    { key: 'all', label: 'Vse' }
+  ];
+  function ownerAnalyticsSetPeriod(key) {
+    ownerAnalyticsPeriod = key;
+    renderOwnerAnalytics();
+  }
+  window.__ownerAnalyticsSetPeriod = ownerAnalyticsSetPeriod;
+
+  function renderOwnerAnalytics() {
+    const periodWrap = document.getElementById('ownerAnalyticsPeriod');
+    const statsWrap = document.getElementById('ownerAnalyticsStats');
+    const topWrap = document.getElementById('ownerAnalyticsTop');
+    if (!periodWrap || !statsWrap || !topWrap) return;
+
+    periodWrap.innerHTML = OWNER_ANALYTICS_PERIODS.map((p) => `<button type="button" class="${p.key === ownerAnalyticsPeriod ? 'active' : ''}" onclick="window.__ownerAnalyticsSetPeriod('${p.key}')">${p.label}</button>`).join('');
+
+    const now = new Date();
+    let from = null;
+    if (ownerAnalyticsPeriod === 'today') from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    else if (ownerAnalyticsPeriod === '7') from = new Date(now.getTime() - 7 * 86400000);
+    else if (ownerAnalyticsPeriod === '30') from = new Date(now.getTime() - 30 * 86400000);
+    else if (ownerAnalyticsPeriod === 'month') from = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const inRange = ownerOrders.filter((o) => o.status !== 'novo' && (!from || new Date(o.placed_at) >= from));
+    const realized = inRange.filter((o) => ['sprejeto', 'pripravljeno', 'zakljuceno'].includes(o.status));
+    const rejectedCount = inRange.length - realized.length;
+
+    let revenue = 0, prevzemCount = 0, dostavaCount = 0;
+    const itemTotals = {};
+    realized.forEach((o) => {
+      const itemsSubtotal = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0);
+      const discountTotal = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
+      revenue += Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0);
+      if (o.type === 'dostava') dostavaCount++; else prevzemCount++;
+      (o.order_items || []).forEach((i) => {
+        itemTotals[i.name] = (itemTotals[i.name] || 0) + i.qty;
+      });
+    });
+    const avgOrder = realized.length ? revenue / realized.length : 0;
+    const topItems = Object.entries(itemTotals).sort((x, y) => y[1] - x[1]).slice(0, 5);
+
+    statsWrap.innerHTML = `
+      <div class="owner-stat-tile"><div class="stat-num">${eur(revenue)}</div><div class="stat-lbl">Promet</div></div>
+      <div class="owner-stat-tile"><div class="stat-num">${realized.length}</div><div class="stat-lbl">Naročil</div></div>
+      <div class="owner-stat-tile"><div class="stat-num">${eur(avgOrder)}</div><div class="stat-lbl">Povprečna vrednost</div></div>
+      <div class="owner-stat-tile"><div class="stat-num">${prevzemCount} / ${dostavaCount}</div><div class="stat-lbl">Prevzem / Dostava</div></div>
+    `;
+
+    topWrap.innerHTML = `
+      <h3 class="section-title" style="font-size:1rem; margin-top:8px;">Najbolje prodajane jedi</h3>
+      <div class="owner-top-items">
+        ${topItems.length ? topItems.map(([name, qty]) => `<div class="owner-top-item-row"><span>${esc(name)}</span><span>${qty}&times;</span></div>`).join('') : '<p class="empty-col">Ni podatkov za izbrano obdobje.</p>'}
+      </div>
+      ${rejectedCount > 0 ? `<p class="section-sub" style="margin-top:12px;">Zavrnjenih/preklicanih naročil v tem obdobju: ${rejectedCount}</p>` : ''}
+    `;
   }
 
   // ---------------- zvočno obvestilo in samodejno osveževanje naročil ----------------
