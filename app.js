@@ -78,6 +78,7 @@
     back_to_market: { sl: '← Nazaj na ponudbo', en: '← Back to offer' },
     open_now: { sl: 'Odprto zdaj', en: 'Open now' },
     closed_now: { sl: 'Trenutno zaprto', en: 'Currently closed' },
+    closed_today: { sl: 'Danes zaprto', en: 'Closed today' },
     pickup: { sl: 'Prevzem', en: 'Pickup' },
     delivery: { sl: 'Dostava', en: 'Delivery' },
     closed_banner: { sl: 'Gostilna trenutno ne sprejema naročil (zaprto ali izven delovnega časa).', en: 'This restaurant is not accepting orders right now (closed or outside opening hours).' },
@@ -477,6 +478,13 @@
     return `linear-gradient(135deg, hsl(${hue},45%,42%), hsl(${(hue + 40) % 360},50%,30%))`;
   }
 
+  // Delovni čas se lahko razlikuje po dnevih (pon-pet/sobota/nedelja), zato backend za prikaz na
+  // kartici/strani gostilne pošlje že izračunan "današnji" urnik (odpira_od_danes/odpira_do_danes).
+  function todaysHoursLabel(r) {
+    if (!r.odpira_od_danes || !r.odpira_do_danes) return t('closed_today');
+    return `${r.odpira_od_danes.slice(0, 5)}–${r.odpira_do_danes.slice(0, 5)}`;
+  }
+
   function tagsForRestaurant(r) {
     const tags = [];
     tags.push(r.odprto_zdaj ? `<span class="tag green">${t('open_now')}</span>` : `<span class="tag red">${t('closed_now')}</span>`);
@@ -563,7 +571,7 @@
             <div class="r-card-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''}${distanceLabel(r) ? ' &middot; ' + distanceLabel(r) : ''}</div>
             ${ratingLabel(r) ? `<div class="r-card-rating">${ratingLabel(r)}</div>` : ''}
             <div class="r-card-tags">${tagsForRestaurant(r)}</div>
-            <div class="r-card-foot"><span>${r.odpira_od ? r.odpira_od.slice(0, 5) : ''}&ndash;${r.odpira_do ? r.odpira_do.slice(0, 5) : ''}</span></div>
+            <div class="r-card-foot"><span>${todaysHoursLabel(r)}</span></div>
           </div>
         </button>
       </div>
@@ -849,7 +857,7 @@
             ${r.logo_url ? `<img class="rd-logo" src="${esc(r.logo_url)}" alt="">` : ''}
             <div>
               <h1>${esc(r.name)}</h1>
-              <p class="r-card-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''} &middot; ${r.odpira_od ? r.odpira_od.slice(0,5) : ''}&ndash;${r.odpira_do ? r.odpira_do.slice(0,5) : ''}</p>
+              <p class="r-card-meta">${esc(r.kraj || '')} ${r.kuhinja ? '&middot; ' + esc(r.kuhinja) : ''} &middot; ${todaysHoursLabel(r)}</p>
               ${ratingLabel(r) ? `<div class="r-card-rating">${ratingLabel(r)}</div>` : ''}
               ${r.loyalty_enabled ? `<p class="loyalty-badge">&#9733; ${t('loyalty_collect')}${customerToken() ? ` &middot; ${t('loyalty_you_have')} ${r.loyalty_balance || 0}` : ''}</p>` : ''}
               ${r.address ? `<p class="rd-address">${esc(r.address)}</p><a class="map-link-btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}">${t('open_maps')}</a>` : ''}
@@ -2759,8 +2767,13 @@
     wrap.innerHTML = `
       <div class="settings-block">
         <h4>Delovni čas in kapaciteta</h4>
-        <div class="settings-row"><span class="lbl">Odpre</span><input class="num-input" style="width:100px;" type="time" value="${(r.odpira_od||'').slice(0,5)}" onchange="window.__updateOwnerSetting('odpira_od',this.value)"></div>
-        <div class="settings-row"><span class="lbl">Zapre</span><input class="num-input" style="width:100px;" type="time" value="${(r.odpira_do||'').slice(0,5)}" onchange="window.__updateOwnerSetting('odpira_do',this.value)"></div>
+        ${[['pon_pet', 'Ponedeljek–petek'], ['sobota', 'Sobota'], ['nedelja', 'Nedelja']].map(([key, label]) => `
+        <div class="settings-row hours-group-row">
+          <label class="checkbox-item" style="min-width:170px;"><input type="checkbox" ${r['odprto_' + key] ? 'checked' : ''} onchange="window.__updateOwnerHoursOpen('${key}',this.checked)"> ${label}</label>
+          <input class="num-input" style="width:100px;" type="time" ${r['odprto_' + key] ? '' : 'disabled'} value="${(r['odpira_' + key + '_od'] || '').slice(0,5)}" onchange="window.__updateOwnerSetting('odpira_${key}_od',this.value)">
+          <span class="section-sub">do</span>
+          <input class="num-input" style="width:100px;" type="time" ${r['odprto_' + key] ? '' : 'disabled'} value="${(r['odpira_' + key + '_do'] || '').slice(0,5)}" onchange="window.__updateOwnerSetting('odpira_${key}_do',this.value)">
+        </div>`).join('')}
         <div class="settings-row"><span class="lbl">Naročil na termin (max.)</span><input class="num-input" type="number" step="1" value="${r.max_per_slot}" onchange="window.__updateOwnerSetting('max_per_slot',this.value)"></div>
         <div class="settings-row"><span class="lbl">E-pošta</span><input class="text-input" style="max-width:220px;" type="email" value="${esc(r.email||'')}" onchange="window.__updateOwnerSetting('email',this.value)"></div>
         <div class="settings-row" style="align-items:flex-start;"><span class="lbl" style="padding-top:8px;">Naslov</span><input class="text-input" style="max-width:220px;" value="${esc(r.address||'')}" placeholder="Ulica in hišna št., pošta" onchange="window.__updateOwnerSetting('address',this.value)"></div>
@@ -2983,6 +2996,15 @@
       .catch((e) => showToast(e.message));
   }
   window.__updateOwnerSetting = updateOwnerSetting;
+
+  // Vklop/izklop delovnega dne za skupino dni (pon-pet / sobota / nedelja) — po shranitvi znova
+  // izriše nastavitve, da se polja za uro pravilno omogočijo/onemogočijo.
+  function updateOwnerHoursOpen(groupKey, checked) {
+    authedFetch('/owner/restaurant', { method: 'PATCH', body: { ['odprto_' + groupKey]: checked } }, ownerToken())
+      .then((data) => { ownerRestaurant = data; showToast('Shranjeno.'); renderOwnerSettings(); })
+      .catch((e) => showToast(e.message));
+  }
+  window.__updateOwnerHoursOpen = updateOwnerHoursOpen;
 
   function updateLegalEntityType(value) {
     authedFetch('/owner/restaurant', { method: 'PATCH', body: { legal_entity_type: value } }, ownerToken())
