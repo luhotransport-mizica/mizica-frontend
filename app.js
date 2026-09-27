@@ -57,7 +57,7 @@
   const I18N = {
     nav_offer: { sl: 'Ponudba', en: 'Offer' },
     nav_account: { sl: 'Moj račun', en: 'My account' },
-    market_eyebrow: { sl: 'Brez provizije za plačila', en: 'No commission on payments' },
+    market_eyebrow: { sl: 'Plačilo neposredno gostilni', en: 'No commission on payments' },
     market_h1: { sl: 'Naročite pri lokalnih gostilnah', en: 'Order from local restaurants' },
     market_lede: { sl: 'Plačilo vedno neposredno gostilni — z gotovino ali kartico ob prevzemu/dostavi. Mizica ne obdeluje plačil.', en: 'Payment always goes directly to the restaurant — cash or card on pickup/delivery. Mizica does not process payments.' },
     how_it_works_title: { sl: 'Kako deluje?', en: 'How it works' },
