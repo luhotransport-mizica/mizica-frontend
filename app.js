@@ -51,7 +51,9 @@
   // ---------------- jezik (SI/EN) — samo stran za stranke; gostilna in skrbnik ostaneta v slovenščini ----------------
   // Vsebina, ki jo vnesejo gostilne (imena, jedi, opisi, naslovi), se NE prevaja — prevaja se samo
   // besedilo vmesnika. Znane napake s strežnika (v slovenščini) prevedemo prek ERR_MAP, če prevod obstaja.
-  let uiLang = localStorage.getItem('mizica_lang') || 'sl';
+  // Angleščina je začasno onemogočena (gumb za preklop je odstranjen iz vmesnika) — stran je zaenkrat
+  // samo v slovenščini, ne glede na to, kaj je bilo prej shranjeno v brskalniku.
+  let uiLang = 'sl';
   const I18N = {
     nav_offer: { sl: 'Ponudba', en: 'Offer' },
     nav_account: { sl: 'Moj račun', en: 'My account' },
@@ -299,7 +301,9 @@
     }
   }
   let lastLoyaltyOverview = null;
-  document.getElementById('langToggleBtn').addEventListener('click', () => setUiLang(uiLang === 'sl' ? 'en' : 'sl'));
+  // Gumb za preklop jezika je začasno odstranjen iz vmesnika (angleščina trenutno ni potrebna) —
+  // funkcionalnost prevajanja ostaja v kodi, da jo je lahko kasneje spet enostavno vklopiti.
+  document.getElementById('langToggleBtn')?.addEventListener('click', () => setUiLang(uiLang === 'sl' ? 'en' : 'sl'));
 
   let toastTimer = null;
   function showToast(msg) {
