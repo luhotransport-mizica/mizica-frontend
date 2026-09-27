@@ -65,7 +65,7 @@
     how_it_works_1_text: { sl: 'Poišči gostilno v svojem kraju ali bližini.', en: 'Find a restaurant in your area or nearby.' },
     how_it_works_2_title: { sl: 'Naroči', en: 'Place your order' },
     how_it_works_2_text: { sl: 'Sestavi naročilo in izberi prevzem ali dostavo.', en: 'Build your order and choose pickup or delivery.' },
-    how_it_works_3_title: { sl: 'Plačaj ob prevzemu', en: 'Pay on pickup' },
+    how_it_works_3_title: { sl: 'Plačaj neposredno gostilni', en: 'Pay on pickup' },
     how_it_works_3_text: { sl: 'Plačaš neposredno gostilni — z gotovino ali kartico.', en: "Pay the restaurant directly — cash or card." },
     market_nearby_note_prefix: { sl: 'Ni ujemanja po imenu — prikazujem gostilne v bližini', en: 'No name matches — showing restaurants near' },
     market_nearby_note_suffix: { sl: 'do', en: 'within' },
