@@ -3868,8 +3868,11 @@
 
     // Če ni izrecne povezave (deljena gostilna, prijava za gostilne/skrbnika), ob osvežitvi
     // strani ostanemo na istem zavihku, kjer je bil uporabnik nazadnje, namesto da se
-    // vedno vrne na Ponudbo. Zavihka "Za gostilne"/"Skrbnik" ostaneta dostopna samo prek
-    // svoje povezave, zato tu 'owner'/'admin' namenoma ne obnavljamo.
+    // vedno vrne na Ponudbo. Zavihek "Skrbnik" ostane dostopen samo prek svoje povezave (?skrbnik),
+    // zato tega tu namenoma ne obnavljamo. "Za gostince" pa je od uvedbe prijave na tej strani
+    // dostopen tudi brez posebne povezave (?gostilna), zato ob osvežitvi obnovimo tudi ta zavihek —
+    // initOwnerView() sam preveri, ali obstaja veljavna prijava (in prava lastniška povezava z
+    // gostilno prek loadOwnerData), sicer preprosto prikaže prijavni obrazec.
     if (!shareRestaurantId) {
       let savedView = null, savedRestaurantId = null;
       try {
@@ -3880,6 +3883,9 @@
         goToView('account');
       } else if (savedView === 'restaurant' && savedRestaurantId) {
         openRestaurant(savedRestaurantId);
+      } else if (savedView === 'owner') {
+        document.getElementById('navOwnerBtn').style.display = '';
+        goToView('owner');
       }
     }
   })();
