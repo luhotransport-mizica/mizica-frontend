@@ -3777,7 +3777,7 @@
       rows.push(`<tr><td>Obračunano od</td><td>${new Date(x.billable_from + 'T00:00:00').toLocaleDateString('sl-SI')}</td></tr>`);
     }
     rows.push(`<tr><td>Promet gostilne (z DDV, vključno z dostavo, cel mesec)</td><td>${eur(x.promet)}</td></tr>`);
-    rows.push(`<tr><td>Neto prodaja hrane/pijače v obračunanem obdobju (brez DDV, brez dostave)</td><td>${eur(x.osnova_billable != null ? x.osnova_billable : x.osnova)}</td></tr>`);
+    rows.push(`<tr><td>Neto prodaja hrane/pijače v obračunanem obdobju (brez DDV, brez dostave, brez embalaže)</td><td>${eur(x.osnova_billable != null ? x.osnova_billable : x.osnova)}</td></tr>`);
     rows.push(`<tr><td>Število naročil${hasTrialSplit ? ' v obračunanem obdobju' : ''}</td><td>${x.narocila_billable != null ? x.narocila_billable : x.narocila}</td></tr>`);
     rows.push(`<tr><td>Obračunski model</td><td>${billingModelLabel(r.billing_model)}</td></tr>`);
     if (r.billing_model === 'najemnina' || r.billing_model === 'oboje') rows.push(`<tr><td>Naročnina${hasTrialSplit ? ' (sorazmerno za obračunano obdobje)' : ''}</td><td>${eur(x.rent_share != null ? x.rent_share : r.najemnina)}</td></tr>`);
