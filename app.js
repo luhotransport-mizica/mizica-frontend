@@ -1770,6 +1770,28 @@
     showToast(error ? 'Napaka: ' + error.message : 'Če e-pošta obstaja, boste prejeli povezavo za obnovitev gesla.');
   });
 
+  // Prijava za gostilne tudi na strani "Za gostince" — enaka preverba kot pri prijavi na strani
+  // "Za gostilne": če račun ni povezan z nobeno gostilno (npr. stranka ali skrbnik), loadOwnerData()
+  // prijavo zavrne s toast sporočilom, ne glede na to, od kod je prišel poskus prijave.
+  document.getElementById('gostinceLoginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('gostinceEmail').value.trim();
+    const password = document.getElementById('gostincePassword').value;
+    const errEl = document.getElementById('gostinceLoginError');
+    errEl.textContent = '';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { errEl.textContent = 'Napačna e-pošta ali geslo.'; return; }
+    ownerSession = data.session;
+    goToView('owner');
+  });
+
+  document.getElementById('gostinceForgotBtn').addEventListener('click', async () => {
+    const email = document.getElementById('gostinceEmail').value.trim();
+    if (!email) { showToast('Najprej vpišite e-pošto zgoraj.'); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email);
+    showToast(error ? 'Napaka: ' + error.message : 'Če e-pošta obstaja, boste prejeli povezavo za obnovitev gesla.');
+  });
+
   document.getElementById('ownerLogoutBtn').addEventListener('click', async () => {
     await sb.auth.signOut();
     ownerSession = null; ownerRestaurant = null;

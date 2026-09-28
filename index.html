@@ -211,6 +211,23 @@
         <p class="section-sub">Omogočite svojim strankam enostavno spletno naročanje za osebni prevzem ali vašo dostavo. Prvih 30 dni je uporaba brezplačna, vaš meni pa pripravimo mi, da lahko takoj začnete sprejemati naročila.</p>
         <p class="section-sub">Za vključitev nam pišite na <a href="mailto:info@mizica.si">info@mizica.si</a>.</p>
       </div>
+      <div class="login-box" style="text-align:left; margin-top:16px;">
+        <h2>Že vključeni v Mizico?</h2>
+        <p class="section-sub">Če ste že naša gostilna, se prijavite z e-pošto in geslom, ki ste ga prejeli po povabilu.</p>
+        <form id="gostinceLoginForm">
+          <div class="field-group">
+            <label class="field-label">E-pošta</label>
+            <input class="text-input" type="email" id="gostinceEmail" required autocomplete="username">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Geslo</label>
+            <input class="text-input" type="password" id="gostincePassword" required autocomplete="current-password">
+          </div>
+          <div class="field-error" id="gostinceLoginError"></div>
+          <button class="primary-btn" type="submit">Prijava</button>
+        </form>
+        <button class="link-btn" id="gostinceForgotBtn" type="button">Pozabljeno geslo?</button>
+      </div>
     </div>
   </section>
 
