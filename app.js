@@ -108,6 +108,7 @@
     cart_title: { sl: 'Vaše naročilo', en: 'Your order' },
     cart_empty: { sl: 'Košarica je prazna. Dodajte jedi iz menija.', en: 'Your cart is empty. Add items from the menu.' },
     cart_delivery_fee: { sl: 'Strošek dostave', en: 'Delivery fee' },
+    cart_embalaza_fee: { sl: 'Embalaža', en: 'Packaging' },
     cart_total: { sl: 'Skupaj', en: 'Total' },
     cart_vat_footer: { sl: 'Vse cene vključujejo DDV. Račun izda izbrana gostilna.', en: 'All prices include VAT. The receipt is issued by the selected restaurant.' },
     cart_vat_note: { sl: 'Plačilo neposredno gostilni ob prevzemu/dostavi.<br>Mizica ne obdeluje plačil.', en: 'Payment goes directly to the restaurant on pickup/delivery.<br>Mizica does not process payments.' },
@@ -1029,7 +1030,7 @@
         const a = (it.menu_item_addons || []).find((a) => a.id === aid);
         if (a) { price += Number(a.price); addonNames.push(a.name); }
       }
-      return { key, name: it.name, variantName, addonNames, qty: line.qty, price, vat_rate: it.vat_rate };
+      return { key, name: it.name, variantName, addonNames, qty: line.qty, price, vat_rate: it.vat_rate, embalaza: !!it.embalaza, embalaza_cena: Number(it.embalaza_cena || 0) };
     }).filter(Boolean);
 
     document.getElementById('cartFabBadge').textContent = cartCount();
@@ -1044,11 +1045,21 @@
     const deliveryFee = cart.type === 'dostava' ? Number(r.dostava_strosek || 0) : 0;
     const belowMin = cart.type === 'dostava' && subtotal < Number(r.dostava_min_znesek || 0);
 
+    // Embalaža — vedno (ne glede na prevzem/dostavo); to je le ocena za prikaz v košarici,
+    // dejanski znesek vedno izračuna in preveri strežnik ob oddaji naročila.
+    let embalazaFee = 0;
+    if (r.embalaza_tip === 'po_jedi') {
+      embalazaFee = lines.reduce((s, l) => s + (l.embalaza ? l.embalaza_cena * l.qty : 0), 0);
+    } else if (r.embalaza_tip === 'fiksno') {
+      if (lines.some((l) => l.embalaza)) embalazaFee = Number(r.embalaza_cena || 0);
+    }
+    embalazaFee = Math.round(embalazaFee * 100) / 100;
+
     const codeDiscount = cart.discountPercent > 0 ? Math.round(subtotal * (cart.discountPercent / 100) * 100) / 100 : 0;
     const maxRedeemable = r.loyalty_redeem_value > 0 ? Math.min(r.loyalty_balance || 0, Math.floor(Math.max(0, subtotal - codeDiscount) / r.loyalty_redeem_value)) : 0;
     if (cart.redeemPoints > maxRedeemable) cart.redeemPoints = maxRedeemable;
     const pointsDiscount = cart.redeemPoints > 0 ? Math.round(cart.redeemPoints * r.loyalty_redeem_value * 100) / 100 : 0;
-    const total = Math.max(0, subtotal - codeDiscount - pointsDiscount) + deliveryFee;
+    const total = Math.max(0, subtotal - codeDiscount - pointsDiscount) + deliveryFee + embalazaFee;
 
     const typeChoices = [];
     if (r.prevzem_enabled) typeChoices.push('prevzem');
@@ -1081,6 +1092,7 @@
       ${codeDiscount > 0 ? `<div class="cart-sub cart-discount-row"><span>${t('confirm_discount')} (${esc(cart.discountCode)}, -${cart.discountPercent}%)</span><span>&minus;${eur(codeDiscount)}</span></div>` : ''}
       ${pointsDiscount > 0 ? `<div class="cart-sub cart-discount-row"><span>${t('confirm_loyalty')} (${cart.redeemPoints})</span><span>&minus;${eur(pointsDiscount)}</span></div>` : ''}
       ${deliveryFee ? `<div class="cart-sub"><span>${t('cart_delivery_fee')}</span><span>${eur(deliveryFee)}</span></div>` : ''}
+      ${embalazaFee ? `<div class="cart-sub"><span>${t('cart_embalaza_fee')}</span><span>${eur(embalazaFee)}</span></div>` : ''}
       <div class="cart-total"><span>${t('cart_total')}</span><span>${eur(total)}</span></div>
       <div class="cart-vat-note">${t('cart_vat_footer')}</div>
       <div class="cart-vat-note">${t('cart_vat_note')}</div>
@@ -1274,7 +1286,7 @@
       // ni več omejeno na prvih 20 sekund (glej tudi "Moja naročila" za prijavljene stranke).
       const canCancel = order.status === 'novo';
 
-      const grandTotal = vat ? vat.grandTotal : (order.items || []).reduce((s, i) => s + i.price * i.qty, 0) + Number(order.delivery_fee || 0);
+      const grandTotal = vat ? vat.grandTotal : (order.items || []).reduce((s, i) => s + i.price * i.qty, 0) + Number(order.delivery_fee || 0) + Number(order.embalaza_znesek || 0);
 
       document.getElementById('confirmContent').innerHTML = `
         <div class="confirm-badge">&check;</div>
@@ -1285,6 +1297,7 @@
           ${Number(order.discount_amount || 0) > 0 ? `<div class="confirm-row"><span>${t('confirm_discount')}</span><span>&minus;${eur(order.discount_amount)}</span></div>` : ''}
           ${Number(order.loyalty_discount_amount || 0) > 0 ? `<div class="confirm-row"><span>${t('confirm_loyalty')} (${order.loyalty_points_used})</span><span>&minus;${eur(order.loyalty_discount_amount)}</span></div>` : ''}
           ${order.delivery_fee ? `<div class="confirm-row"><span>${t('cart_delivery_fee')}</span><span>${eur(order.delivery_fee)}</span></div>` : ''}
+          ${order.embalaza_znesek ? `<div class="confirm-row"><span>${t('cart_embalaza_fee')}</span><span>${eur(order.embalaza_znesek)}</span></div>` : ''}
           <div class="confirm-row total"><span>${t('confirm_total')}</span><span>${eur(grandTotal)}</span></div>
           ${vat && vat.rows && vat.rows.length ? `
           <p class="cart-vat-note" style="text-align:left; margin-top:8px;">
@@ -1848,7 +1861,7 @@
     realized.forEach((o) => {
       const itemsSubtotal = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0);
       const discountTotal = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
-      revenue += Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0);
+      revenue += Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0) + Number(o.embalaza_znesek || 0);
       if (o.type === 'dostava') dostavaCount++; else prevzemCount++;
       (o.order_items || []).forEach((i) => {
         itemTotals[i.name] = (itemTotals[i.name] || 0) + i.qty;
@@ -2014,7 +2027,7 @@
     const items = (o.order_items || []).map((i) => `${i.qty}&times; ${esc(i.name)}${i.variant_name ? ' (' + esc(i.variant_name) + ')' : ''}${(i.addons && i.addons.length) ? ' +' + i.addons.map((a) => esc(a.name)).join(', +') : ''}`).join(', ');
     const itemsSubtotal = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0);
     const discountTotal = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
-    const total = Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0);
+    const total = Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0) + Number(o.embalaza_znesek || 0);
     const deadline = ['sprejeto', 'pripravljeno'].includes(o.status) ? autoCompleteDeadline(o) : null;
     const cancelReasonLabel = o.cancel_reason_code ? (CANCEL_REASON_LABELS[o.cancel_reason_code] || o.cancel_reason_code) : null;
     let actions = '';
@@ -2062,6 +2075,7 @@
         ${o.address ? `<div class="order-items">Naslov: ${esc(o.address)}</div>` : ''}
         <div class="order-items">Tel: ${esc(o.phone)}</div>
         ${discountTotal > 0 ? `<div class="order-items">Popust: &minus;${eur(discountTotal)}${o.discount_code_id && o.loyalty_points_used ? ' (koda + točke)' : (o.loyalty_points_used ? ' (točke)' : ' (koda)')}</div>` : ''}
+        ${o.embalaza_znesek ? `<div class="order-items">Embalaža: ${eur(o.embalaza_znesek)}</div>` : ''}
         <div class="order-total">${eur(total)}</div>
         ${deadline ? `<div class="order-items">Samodejni zaključek: do ${deadline.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
         ${cancelReasonLabel ? `<div class="order-reject">Razlog: ${esc(cancelReasonLabel)}</div>` : ''}
@@ -2087,7 +2101,7 @@
     }).join('');
     const printSubtotal = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0);
     const printDiscount = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
-    const total = Math.max(0, printSubtotal - printDiscount) + Number(o.delivery_fee || 0);
+    const total = Math.max(0, printSubtotal - printDiscount) + Number(o.delivery_fee || 0) + Number(o.embalaza_znesek || 0);
     const html = `<!DOCTYPE html><html lang="sl"><head><meta charset="UTF-8"><title>Naročilo — ${esc(o.customer_name)}</title>
       <style>
         @page { margin: 16mm; }
@@ -2112,6 +2126,7 @@
       <div style="margin-top:18px;">${items}</div>
       ${printDiscount > 0 ? `<div class="p-line"><span>Popust</span><span>&minus;${eur(printDiscount)}</span></div>` : ''}
       ${o.delivery_fee ? `<div class="p-line"><span>Strošek dostave</span><span>${eur(o.delivery_fee)}</span></div>` : ''}
+      ${o.embalaza_znesek ? `<div class="p-line"><span>Embalaža</span><span>${eur(o.embalaza_znesek)}</span></div>` : ''}
       <div class="p-total"><span>Skupaj</span><span>${eur(total)}</span></div>
       </body></html>`;
     const w = window.open('', '_blank', 'width=820,height=900');
@@ -2131,7 +2146,7 @@
     zavrnjeno: 'Zavrnjeno', preklicano: 'Preklicano', ni_prevzel: 'Ni prevzeto'
   };
 
-  function clientVatBreakdown(items, deliveryFee, discount) {
+  function clientVatBreakdown(items, deliveryFee, discount, embalazaFee = 0) {
     const groups = {};
     for (const li of items) groups[li.vat_rate] = (groups[li.vat_rate] || 0) + li.price * li.qty;
     const itemsGross = Object.values(groups).reduce((s, g) => s + g, 0);
@@ -2139,7 +2154,8 @@
       const ratio = Math.max(0, (itemsGross - discount) / itemsGross);
       for (const rate of Object.keys(groups)) groups[rate] *= ratio;
     }
-    if (deliveryFee > 0) groups[22] = (groups[22] || 0) + deliveryFee; // dostava vedno po splošni 22% stopnji, enako kot na strežniku
+    const serviceExtra = Number(deliveryFee || 0) + Number(embalazaFee || 0);
+    if (serviceExtra > 0) groups[22] = (groups[22] || 0) + serviceExtra; // dostava in embalaža vedno po splošni 22% stopnji, enako kot na strežniku
     const out = {};
     for (const [rate, gross] of Object.entries(groups)) {
       const r = Number(rate);
@@ -2196,7 +2212,7 @@
     const perOrderVat = orders.map((o) => {
       const items = (o.order_items || []).map((i) => ({ price: i.price, qty: i.qty, vat_rate: i.vat_rate }));
       const discount = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
-      const vb = clientVatBreakdown(items, Number(o.delivery_fee || 0), discount);
+      const vb = clientVatBreakdown(items, Number(o.delivery_fee || 0), discount, Number(o.embalaza_znesek || 0));
       Object.keys(vb).forEach((r) => ratesSet.add(Number(r)));
       return vb;
     });
@@ -2204,14 +2220,14 @@
 
     const header = ['Datum', 'Ura', 'Stranka', 'Telefon', 'Naslov', 'Način', 'Plačilo', 'Jedi',
       ...rates.flatMap((r) => [`Osnova ${formatVatSl(r)} (€)`, `DDV ${formatVatSl(r)} (€)`]),
-      'Popust (€)', 'Dostava (€)', 'Skupaj (€)', 'Status'];
+      'Popust (€)', 'Dostava (€)', 'Embalaža (€)', 'Skupaj (€)', 'Status'];
 
     const lines = [header.map(csvCell).join(';')];
     orders.forEach((o, idx) => {
       const items = (o.order_items || []).map((i) => `${i.qty}x ${i.name}`).join(', ');
       const itemsSubtotal = (o.order_items || []).reduce((s, i) => s + i.price * i.qty, 0);
       const discountTotal = Number(o.discount_amount || 0) + Number(o.loyalty_discount_amount || 0);
-      const total = Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0);
+      const total = Math.max(0, itemsSubtotal - discountTotal) + Number(o.delivery_fee || 0) + Number(o.embalaza_znesek || 0);
       const vb = perOrderVat[idx];
       const d = new Date(o.placed_at);
       const row = [
@@ -2226,6 +2242,7 @@
         ...rates.flatMap((r) => [csvNum(vb[r] ? vb[r].osnova : 0), csvNum(vb[r] ? vb[r].ddv : 0)]),
         csvNum(discountTotal),
         csvNum(o.delivery_fee || 0),
+        csvNum(o.embalaza_znesek || 0),
         csvNum(total),
         ORDER_STATUS_LABEL_CSV[o.status] || o.status,
       ];
@@ -2486,7 +2503,7 @@
       <div class="mm-row" id="mmrow-${it.id}">
         <div class="mm-name">
           ${it.photo_url ? `<img class="mm-photo" src="${esc(it.photo_url)}" alt="">` : ''}
-          ${esc(it.name)} <span class="mi-ddv">${eur(it.price)} &middot; DDV ${formatVatSl(it.vat_rate)}</span> ${it.daily ? '<span class="pill-daily">Dnevno</span>' : ''}
+          ${esc(it.name)} <span class="mi-ddv">${eur(it.price)} &middot; DDV ${formatVatSl(it.vat_rate)}</span> ${it.daily ? '<span class="pill-daily">Dnevno</span>' : ''} ${it.embalaza ? `<span class="pill-daily">Embalaža${it.embalaza_cena ? ' ' + eur(it.embalaza_cena) : ''}</span>` : ''}
         </div>
         <div class="mm-row-actions">
           <button class="secondary-btn" type="button" onclick="window.__editVariantsAddonsForm('${it.id}')">${optsLabel}</button>
@@ -2627,6 +2644,11 @@
           <input type="hidden" id="if-photo-${opts.key}" value="${esc(it.photo_url || '')}">
         </div>
         <label class="chip-check" style="margin-top:8px;"><input type="checkbox" id="if-daily-${opts.key}" ${it.daily ? 'checked' : ''}> Dnevna ponudba</label>
+        <div class="field-group" style="margin-top:8px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <label class="chip-check"><input type="checkbox" id="if-embalaza-${opts.key}" onchange="window.__toggleEmbalazaPriceField('${opts.key}', this.checked)" ${it.embalaza ? 'checked' : ''}> Embalaža</label>
+          <input class="num-input" id="if-embalaza-cena-${opts.key}" type="number" step="0.01" min="0" placeholder="Cena embalaže €" style="width:150px; ${it.embalaza ? '' : 'display:none;'}" value="${it.embalaza_cena != null ? it.embalaza_cena : ''}">
+        </div>
+        <p class="section-sub" style="margin:4px 0 0;">Obkljukajte, če ta jed potrebuje embalažo. Cena embalaže na jed se upošteva, če je gostilna v nastavitvah izbrala "Po jedi".</p>
         <div class="field-error" id="if-error-${opts.key}"></div>
         <div class="inline-form-actions">
           <button class="secondary-btn" type="button" onclick="window.__cancelItemForm('${opts.key}')">Prekliči</button>
@@ -2689,6 +2711,12 @@
   }
   window.__refreshAllergenSummary = refreshAllergenSummary;
 
+  function toggleEmbalazaPriceField(key, checked) {
+    const el = document.getElementById('if-embalaza-cena-' + key);
+    if (el) el.style.display = checked ? '' : 'none';
+  }
+  window.__toggleEmbalazaPriceField = toggleEmbalazaPriceField;
+
   async function saveItemForm(categoryId, itemId, key) {
     const name = document.getElementById('if-name-' + key).value.trim();
     const price = document.getElementById('if-price-' + key).value;
@@ -2697,13 +2725,15 @@
     const allergen_codes = Array.from(document.querySelectorAll('.allergen-cb-' + key + ':checked')).map((el) => el.value);
     const photo_url = document.getElementById('if-photo-' + key).value.trim();
     const daily = document.getElementById('if-daily-' + key).checked;
+    const embalaza = document.getElementById('if-embalaza-' + key).checked;
+    const embalaza_cena = document.getElementById('if-embalaza-cena-' + key).value;
     const errEl = document.getElementById('if-error-' + key);
     if (!name || isNaN(parseFloat(price))) { errEl.textContent = 'Vpišite ime in veljavno ceno.'; return; }
     try {
       if (itemId) {
-        await authedFetch('/owner/menu/items/' + itemId, { method: 'PATCH', body: { name, price, vat_rate, description, allergen_codes, photo_url: photo_url || null, daily } }, ownerToken());
+        await authedFetch('/owner/menu/items/' + itemId, { method: 'PATCH', body: { name, price, vat_rate, description, allergen_codes, photo_url: photo_url || null, daily, embalaza, embalaza_cena } }, ownerToken());
       } else {
-        await authedFetch('/owner/menu/items', { method: 'POST', body: { category_id: categoryId, name, price, vat_rate, description, allergen_codes, photo_url: photo_url || null, daily } }, ownerToken());
+        await authedFetch('/owner/menu/items', { method: 'POST', body: { category_id: categoryId, name, price, vat_rate, description, allergen_codes, photo_url: photo_url || null, daily, embalaza, embalaza_cena } }, ownerToken());
       }
       await loadOwnerData();
       showToast('Jed shranjena.');
@@ -2829,6 +2859,25 @@
           <div class="pay-matrix-row"><span class="lbl">Min. znesek dostave</span><div><input class="num-input" type="number" step="0.5" value="${r.dostava_min_znesek}" onchange="window.__updateOwnerSetting('dostava_min_znesek',this.value)"> &euro;</div></div>
           <div class="pay-matrix-row"><span class="lbl">Strošek dostave</span><div><input class="num-input" type="number" step="0.5" value="${r.dostava_strosek}" onchange="window.__updateOwnerSetting('dostava_strosek',this.value)"> &euro;</div></div>
         </div>
+      </div>
+      <div class="settings-block">
+        <h4>Embalaža</h4>
+        <p class="section-sub" style="margin-bottom:8px;">Izberite, kako zaračunavate embalažo. Velja vedno, ne glede na prevzem ali dostavo — a samo za jedi, ki jih pri urejanju menija označite z "Embalaža".</p>
+        <div class="settings-row">
+          <span class="lbl">Način zaračunavanja</span>
+          <select class="select-input" style="max-width:220px;" onchange="window.__updateOwnerEmbalazaTip(this.value)">
+            <option value="brez" ${(!r.embalaza_tip || r.embalaza_tip === 'brez') ? 'selected' : ''}>Brez embalaže</option>
+            <option value="fiksno" ${r.embalaza_tip === 'fiksno' ? 'selected' : ''}>Fiksen znesek na naročilo</option>
+            <option value="po_jedi" ${r.embalaza_tip === 'po_jedi' ? 'selected' : ''}>Cena po posamezni jedi</option>
+          </select>
+        </div>
+        ${r.embalaza_tip === 'fiksno' ? `
+        <div class="settings-row"><span class="lbl">Znesek na naročilo</span><div><input class="num-input" type="number" step="0.1" min="0" value="${r.embalaza_cena || 0}" onchange="window.__updateOwnerSetting('embalaza_cena',this.value)"> &euro;</div></div>
+        <p class="section-sub" style="margin:0;">Ta znesek se zaračuna enkrat na naročilo, če naročilo vsebuje vsaj eno jed, označeno z "Embalaža".</p>
+        ` : ''}
+        ${r.embalaza_tip === 'po_jedi' ? `
+        <p class="section-sub" style="margin:0;">Ceno embalaže za vsako jed nastavite pri urejanju menija (zavihek "Meni").</p>
+        ` : ''}
       </div>
       <div class="settings-block">
         <h4>Javna povezava do vaše ponudbe</h4>
@@ -3009,6 +3058,15 @@
       .catch((e) => showToast(e.message));
   }
   window.__updateOwnerHoursOpen = updateOwnerHoursOpen;
+
+  // Način zaračunavanja embalaže — po shranitvi znova izriše nastavitve, da se prikaže/skrije
+  // polje za znesek (odvisno od izbranega načina).
+  function updateOwnerEmbalazaTip(value) {
+    authedFetch('/owner/restaurant', { method: 'PATCH', body: { embalaza_tip: value } }, ownerToken())
+      .then((data) => { ownerRestaurant = data; showToast('Shranjeno.'); renderOwnerSettings(); })
+      .catch((e) => showToast(e.message));
+  }
+  window.__updateOwnerEmbalazaTip = updateOwnerEmbalazaTip;
 
   function updateLegalEntityType(value) {
     authedFetch('/owner/restaurant', { method: 'PATCH', body: { legal_entity_type: value } }, ownerToken())
